@@ -61,7 +61,7 @@ class RDFAgent(Agent):
 
     class StatusSendBehaviour(PeriodicBehaviour):
         async def run(self):
-            for agent_jid in self.agent.simulation.registered_agents:
+            for agent_jid in self.agent.simulation.server.registered_agents:
                 self.agent.logger.debug(f"Sending status message to {agent_jid}")
                 await self.send(StatusMessage(to=str(agent_jid)))
 
