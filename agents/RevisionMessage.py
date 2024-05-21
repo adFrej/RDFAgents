@@ -2,11 +2,11 @@ import json
 
 from spade.message import Message
 
-from agents.RDFAgent import RDFAgent
+# from agents.RDFAgent import RDFAgent
 
 
 class RevisionMessage(Message):
-    def __init__(self, to: str, revision: RDFAgent.Revision):
+    def __init__(self, to: str, revision):
         super().__init__(to=to)
         self.body = json.dumps({json.dumps(revision.to_json())})
         self.set_metadata("performative", "inform")
