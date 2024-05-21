@@ -9,7 +9,7 @@ class RdfDocument:
         self.author_uuid = str(uuid4())
         self.revisions = {}
         self.current_hash = None
-        self.cached_state = {}
+        self.cached_state: dict[str, RdfTriple] = {}
 
     def new_revision(self):
         parent = [self.current_hash] if self.current_hash is not None else None
@@ -25,11 +25,19 @@ class RdfDocument:
         if self.current_revision.author != self.author_uuid:
             raise Exception("Can't add triple to an unowned revision")
         self.current_revision.add(triple)
+        self.cached_state[triple.hash] = triple
     
     def remove(self, triple: 'RdfTriple'):
         if self.current_revision.author != self.author_uuid:
             raise Exception("Can't remove triple from an unowned revision")
         self.current_revision.remove(triple)
+        del self.cached_state[triple.hash]
+
+    def parse_fragment(self, operation: str, triple: 'RdfTriple'):
+        if operation == "+":
+            self.add(triple)
+        elif operation == "-":
+            self.remove(triple)
 
 class RdfRevision:
     def __init__(self, *, parents: Optional[list[str]], author: str):
