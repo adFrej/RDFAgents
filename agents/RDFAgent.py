@@ -4,6 +4,7 @@ import time
 from spade.agent import Agent
 from spade.behaviour import PeriodicBehaviour, CyclicBehaviour
 
+from agents.RevisionMessage import RevisionMessage
 from agents.StatusMessage import StatusMessage
 from logger.logger import get_logger
 
@@ -19,6 +20,33 @@ class RDFAgent(Agent):
             self.created = time.time()
 
     known_agents: dict[str, KnownAgent] = {}
+
+    class Revision:
+        def __init__(self,
+                     added_triples: list[tuple[any, any, any]],
+                     removed_triples: list[tuple[any, any, any]],
+                     author: str):
+            self.added_triples = added_triples
+            self.removed_triples = removed_triples
+            self.author = author
+
+        def to_json(self):
+            return json.dumps({
+                "added_triples": self.added_triples,
+                "removed_triples": self.removed_triples,
+                "author": self.author
+            })
+
+        @staticmethod
+        def from_json(json_str: str) -> 'RDFAgent.Revision':
+            data = json.loads(json_str)
+            return RDFAgent.Revision(
+                added_triples=data["added_triples"],
+                removed_triples=data["removed_triples"],
+                author=data["author"]
+            )
+
+    graph: list[Revision] = []
 
     def __init__(self, jid: str, password: str, server):
         super().__init__(jid, password)
@@ -41,10 +69,32 @@ class RDFAgent(Agent):
     class StatusReceiveBehaviour(CyclicBehaviour):
         async def run(self):
             msg = await self.receive()
-            if msg:
-                self.agent.logger.debug(f"Received status message from {msg.sender}: {msg.body}")
+            if msg and msg.metadata["ontology"] == "status":
+                self.agent.logger.debug(f"Received status message from {msg.sender}")
                 body = json.loads(msg.body)
                 self.agent.known_agents[str(msg.sender)] = RDFAgent.KnownAgent(str(msg.sender), body["status"])
+
+    class LocalRevisionCreateBehaviour(PeriodicBehaviour):
+        async def run(self):
+            # test data for now, here insert graph generator
+            revision = RDFAgent.Revision(
+                added_triples=[(1, 2, 3)],
+                removed_triples=[],
+                author=str(self.agent.jid)
+            )
+            self.agent.graph.append(revision)
+
+            for agent in self.agent.known_agents:
+                self.agent.logger.debug(f"Sending revision to {agent.jid}")
+                await self.send(RevisionMessage(to=str(agent.jid), revision=revision))
+
+    class RemoteRevisionReceiveBehaviour(CyclicBehaviour):
+        async def run(self):
+            msg = await self.receive()
+            if msg and msg.metadata["ontology"] == "revision":
+                self.agent.logger.debug(f"Received revision message from {msg.sender}")
+                revision = RDFAgent.Revision.from_json(msg.body)
+                self.agent.graph.append(revision)
 
     async def setup(self):
         self.add_behaviour(self.StatusReceiveBehaviour())
