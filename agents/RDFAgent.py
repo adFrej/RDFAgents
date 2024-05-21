@@ -2,7 +2,8 @@ import json
 import time
 
 from spade.agent import Agent
-from spade.behaviour import PeriodicBehaviour, CyclicBehaviour
+from spade.behaviour import (CyclicBehaviour, OneShotBehaviour,
+                             PeriodicBehaviour)
 
 from agents.RevisionMessage import RevisionMessage
 from agents.StatusMessage import StatusMessage
@@ -48,23 +49,27 @@ class RDFAgent(Agent):
 
     graph: list[Revision] = []
 
-    def __init__(self, jid: str, password: str, server):
+    def __init__(self, jid: str, password: str, simulation: 'Simulation'):
         super().__init__(jid, password)
 
         self.logger = get_logger(f"Agent-{jid}")
-        self.server = server
+        self.simulation = simulation
+
+    class RegisterAgentOnServer(OneShotBehaviour):
+        async def run(self):
+            self.agent.simulation.server.register_agent(self.agent.jid)
 
     class StatusSendBehaviour(PeriodicBehaviour):
         async def run(self):
-            for agent in self.agent.server.get_active_agents():
-                self.agent.logger.debug(f"Sending status message to {agent.jid}")
-                await self.send(StatusMessage(to=str(agent.jid)))
+            for agent_jid in self.agent.simulation.registered_agents:
+                self.agent.logger.debug(f"Sending status message to {agent_jid}")
+                await self.send(StatusMessage(to=str(agent_jid)))
 
                 # to be done better
-                if str(agent.jid) in self.agent.known_agents:
-                    if self.agent.known_agents[str(agent.jid)].created + KNOWN_AGENTS_TTL < time.time():
-                        self.agent.logger.debug(f"Lost connection with {agent.jid}")
-                        del self.agent.known_agents[str(agent.jid)]
+                if str(agent_jid) in self.agent.known_agents:
+                    if self.agent.known_agents[str(agent_jid)].created + KNOWN_AGENTS_TTL < time.time():
+                        self.agent.logger.debug(f"Lost connection with {agent_jid}")
+                        del self.agent.known_agents[str(agent_jid)]
 
     class StatusReceiveBehaviour(CyclicBehaviour):
         async def run(self):
@@ -97,5 +102,6 @@ class RDFAgent(Agent):
                 self.agent.graph.append(revision)
 
     async def setup(self):
+        self.add_behaviour(self.RegisterAgentOnServer())
         self.add_behaviour(self.StatusReceiveBehaviour())
         self.add_behaviour(self.StatusSendBehaviour(period=STATUS_SEND_PERIOD))

@@ -1,15 +1,16 @@
 import os
 
 from logger.logger import setup_logging
+from services.graph_generator import GraphGenerator
 from services.server import Server
-
-ADDRESS = os.getenv("ADDRESS")
-PASSWORD = os.getenv("PASSWORD")
+from services.simulation import Simulation
 
 if __name__ == '__main__':
     setup_logging()
 
-    server = Server()
-    for i in range(1, 4):
-        server.add_rdf_agent(f"{ADDRESS}/{i}", PASSWORD)
-    server.start()
+    simulation = Simulation(
+        server = Server(),
+        graph_generator = GraphGenerator()
+    )
+    simulation.populate(4)
+    simulation.start()

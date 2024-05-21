@@ -1,7 +1,8 @@
 from typing import Optional
 
 import numpy as np
-from rdf_document import RdfTriple
+
+from services.rdf_document import RdfTriple
 
 
 class GraphGenerator:
