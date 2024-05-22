@@ -1,9 +1,9 @@
 from services.graph_generator import GraphGenerator
-from services.rdf_document import RdfDocument
+from services.rdf_document import RDFDocument
 
 
 generator = GraphGenerator(total_triples=4)
-doc = RdfDocument()
+doc = RDFDocument()
 doc.new_revision()
 
 for _ in range(100):

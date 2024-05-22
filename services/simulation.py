@@ -1,6 +1,6 @@
 import time
 
-from agents.RDFAgent import RDFAgent
+from agents.rdf_agent import RDFAgent
 from config import AGENT_ADDRESS, AGENT_PASSWORD
 from logger.logger import get_logger
 from services.graph_generator import GraphGenerator

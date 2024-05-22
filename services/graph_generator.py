@@ -2,7 +2,7 @@ from typing import Optional
 
 import numpy as np
 
-from services.rdf_document import RdfTriple
+from services.rdf_document import RDFTriple
 
 
 class GraphGenerator:
@@ -15,7 +15,7 @@ class GraphGenerator:
 
         self.ground_truth = [self.triple_generator.generate_triple() for _ in range(total_triples)]
 
-    def uncover_graph_fragment(self, known_triples: dict[str, RdfTriple]) -> tuple[str, RdfTriple]:
+    def uncover_graph_fragment(self, known_triples: dict[str, RDFTriple]) -> tuple[str, RDFTriple]:
         if self.random.random() < self.mutation_chance:
             self.ground_truth[self.get_random_triple_id()] = self.triple_generator.generate_triple()
         if self.random.random() < self.uncover_outdated_chance:
@@ -34,8 +34,8 @@ class TripleGenerator:
         self.total_entities = total_entities
         self.total_predicates = total_predicates
 
-    def generate_triple(self) -> RdfTriple:
-        return RdfTriple(self.random_entity(), self.random_predicate(), self.random_entity())
+    def generate_triple(self) -> RDFTriple:
+        return RDFTriple(self.random_entity(), self.random_predicate(), self.random_entity())
 
     def random_entity(self) -> str:
         return "E" + str(self.random.integers(0, self.total_entities - 1))

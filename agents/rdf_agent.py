@@ -6,10 +6,10 @@ from spade.agent import Agent
 from spade.behaviour import (CyclicBehaviour, OneShotBehaviour,
                              PeriodicBehaviour)
 
-from agents.RevisionMessage import RevisionMessage, ONTOLOGY_REVISION
-from agents.StatusMessage import StatusMessage, ONTOLOGY_STATUS
+from agents.revision_message import RevisionMessage, ONTOLOGY_REVISION
+from agents.status_message import StatusMessage, ONTOLOGY_STATUS
 from logger.logger import get_logger
-from services.rdf_document import RdfDocument, RdfRevision
+from services.rdf_document import RDFDocument, RDFRevision
 
 KNOWN_AGENTS_TTL = 10
 STATUS_SEND_PERIOD = 5
@@ -23,7 +23,7 @@ class RDFAgent(Agent):
             self.created = time.time()
 
     known_agents: dict[str, KnownAgent] = {}
-    doc = RdfDocument()
+    doc = RDFDocument()
     merge_master: str = None
 
     def __init__(self, jid: str, password: str, simulation: 'Simulation'):
@@ -84,7 +84,7 @@ class RDFAgent(Agent):
             msg = await self.receive()
             if msg and msg.metadata["ontology"] == ONTOLOGY_REVISION and str(msg.sender) in self.agent.known_agents:
                 self.agent.logger.debug(f"Received revision message from {msg.sender}")
-                revision = RdfRevision.from_json(msg.body)
+                revision = RDFRevision.from_json(msg.body)
 
                 status = self.agent.doc.external_revision_status(revision)
                 if status == "known":
