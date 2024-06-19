@@ -2,12 +2,11 @@ import hashlib
 import json
 import time
 from typing import Optional
-from uuid import uuid4
 
 
 class RDFDocument:
-    def __init__(self):
-        self.author_uuid = str(uuid4())
+    def __init__(self, author: str):
+        self.author_uuid = author
         self.revisions = {}
         self.current_hash = None
         self.cached_state: dict[str, RDFTriple] = {}
@@ -22,14 +21,18 @@ class RDFDocument:
     def current_revision(self) -> 'RDFRevision':
         return self.revisions[self.current_hash]
 
+    @property
+    def revisions_hashes(self) -> list[str]:
+        return list(self.revisions.keys())
+
     def add(self, triple: 'RDFTriple'):
-        if self.current_revision.author != self.author_uuid:
+        if self.current_revision.author_uuid != self.author_uuid:
             raise Exception("Can't add triple to an unowned revision")
         self.current_revision.add(triple)
         self.cached_state[triple.hash] = triple
 
     def remove(self, triple: 'RDFTriple'):
-        if self.current_revision.author != self.author_uuid:
+        if self.current_revision.author_uuid != self.author_uuid:
             raise Exception("Can't remove triple from an unowned revision")
         self.current_revision.remove(triple)
         del self.cached_state[triple.hash]
@@ -40,10 +43,13 @@ class RDFDocument:
         elif operation == "-":
             self.remove(triple)
 
-    def external_revision_status(self, revision: 'RDFRevision') -> str:
-        return "merge"
-        # TODO: return "known", "append", "merge", "rebase"
-        pass
+    def can_rebase(self, revision: 'RDFRevision') -> bool:
+        for rev in reversed(self.revisions.values()):
+            if rev.hash in revision.parents:
+                return True
+            if rev.author_uuid != self.author_uuid:
+                return False
+        return False
 
     def append_revision(self, revision: 'RDFRevision'):
         pass
@@ -56,9 +62,10 @@ class RDFDocument:
 
 
 class RDFRevision:
-    def __init__(self, *, parents: Optional[list[str]], author: str):
-        self.parents = parents
-        self.author = author
+    def __init__(self, *, parents: Optional[list[str]], author: str, is_merge: bool = False):
+        self.parents = parents if parents is not None else []
+        self.author_uuid = author
+        self.is_merge = is_merge
         self.created_at = time.time()
         self.hash = hashlib.sha512((str(parents) + author).encode('utf-8')).hexdigest()
         self.deltas_add: dict[str, RDFTriple] = {}
@@ -82,7 +89,7 @@ class RDFRevision:
     def to_json(self) -> str:
         return json.dumps({
             "parents": self.parents,
-            "author": self.author,
+            "author": self.author_uuid,
             "created_at": self.created_at,
             "hash": self.hash,
             "deltas_add": {hash: delta.to_json() for hash, delta in self.deltas_add.items()},
