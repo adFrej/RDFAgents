@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>RDFAgents - simulation GUI</title>
+  </head>
+  <body>
+    <script>
+      async function endpointGet(url) {
+        let response = await fetch("/api/" + url);
+        let data = await response.json();
+        return data;
+      }
+
+      async function endpointPost(url, params) {
+        let response = await fetch("/api/" + url + "?" + new URLSearchParams(params));
+      }
+
+      endpointGet("get_state").then(console.warn)
+      endpointPost("set_state", {state: 17})
+    </script>  
+  </body>
+</html>
