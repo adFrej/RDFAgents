@@ -1,7 +1,7 @@
 import time
 
 from agents.rdf_agent import RDFAgent
-from config import AGENT_ADDRESS, AGENT_PASSWORD
+from config import AGENT_ADDRESS, AGENT_PASSWORD, PREFIX
 from logger.logger import get_logger
 from services.graph_generator import GraphGenerator
 from services.server import Server
@@ -18,7 +18,7 @@ class Simulation:
     def populate(self, count: int):
         for _ in range(count):
             self._last_agent_id += 1
-            self.add_rdf_agent(f"{AGENT_ADDRESS}/{self._last_agent_id}", AGENT_PASSWORD)
+            self.add_rdf_agent(f"{AGENT_ADDRESS}/{PREFIX}{self._last_agent_id}", AGENT_PASSWORD)
 
     def add_rdf_agent(self, address: str, password: str):
         self._logger.debug(f"Adding RDF agent: {address}")

@@ -1,6 +1,6 @@
 import time
 from spade.agent import Agent
-from config import AGENT_ADDRESS, AGENT_PASSWORD
+from config import AGENT_ADDRESS, AGENT_PASSWORD, PREFIX
 from services.simulation import Simulation
 from web.endpoints import EndpointsContext
 
@@ -11,7 +11,7 @@ class GuiServer:
         self.port = port
 
     def start(self):
-        web_agent = Agent(AGENT_ADDRESS+"/web", AGENT_PASSWORD)
+        web_agent = Agent(AGENT_ADDRESS+f"/web", AGENT_PASSWORD)
         web_agent.web.add_get("/gui", lambda r: {}, "web/gui.html")
 
         self.endpoints.inject_endpoints(web_agent)
