@@ -30,6 +30,8 @@
         padding: 2px;
         border: #2f3e46 3px solid;
         border-radius: 4px;
+
+        transition: border-color 0.5s;
       }
 
       .knowledge__container--in-circle {
@@ -39,9 +41,14 @@
         transform: rotate(calc(360deg * var(--angle))) translateY(-20vmin) rotate(calc(-360deg * var(--angle)));
       }
 
+      .knowledge__container--master {
+        border-color: #bfefc4;
+      }
+
       .knowledge__marker {
         width: var(--marker-dot-size);
         height: var(--marker-dot-size);
+        transition: background 0.5s;
       }
       .knowledge__marker--black {
         background: #374f54;
@@ -98,12 +105,14 @@
         }
       }
 
-      function renderKnowledgeMarkers(knowledge) {
+      function renderKnowledgeMarkers(knowledge, masters) {
         let root = document.getElementById("marker-root")
         for(let child of root.children) {
           if(!knowledge[child.id]) child.remove()
         }
-        // TODO - removing old
+
+        masters = new Set(masters)
+
         let i = 0
         for(let agent in knowledge) {
           if(!document.getElementById(agent)) 
@@ -112,6 +121,7 @@
             let marker = document.getElementById(agent)
             updateKnowledgeMarker(marker, knowledge[agent])
             marker.style.setProperty("--angle", i/Object.keys(knowledge).length)
+            marker.classList.toggle("knowledge__container--master", masters.has(agent))
             i += 1
         }
 
@@ -135,8 +145,8 @@
 
       function renderState(state) {
         updateGlobalState("total_triples", state["total_triples"], updateKnowledgeMarkerWidth) // TODO
-        renderKnowledgeMarkers(state["agent_knowledge"])
-        
+        renderKnowledgeMarkers(state["agent_knowledge"], state["merge_masters"])
+        console.log(state)
       }
       setInterval(() => {
         endpointGet("get_state").then(renderState)

@@ -22,12 +22,15 @@ class EndpointsContext:
     def endpoint_get_state(self) -> dict:
         state = {
             'total_triples': len(self.simulation.graph_generator.ground_truth),
-            'agent_knowledge': {}
+            'agent_knowledge': {},
+            'merge_masters': []
         }
 
         markers = self.simulation.graph_generator.triple_markers
         for agent in self.simulation.active_agents:
             state['agent_knowledge'][str(agent.jid)] = [int(markers[k]) for k in agent.doc.cached_state.keys()]
+            if str(agent.merge_master) == str(agent.jid): 
+                state['merge_masters'].append(str(agent.jid))
         
         return state
     
