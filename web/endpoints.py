@@ -36,3 +36,9 @@ class EndpointsContext:
     
     async def endpoint_restart(self) -> None:
         await self.simulation.restart()
+    
+    async def endpoint_add_agent(self) -> None:
+        await self.simulation.add_agent()
+    
+    async def endpoint_pop_last_agent(self) -> None:
+        await self.simulation.pop_last_agent()

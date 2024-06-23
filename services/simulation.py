@@ -15,14 +15,18 @@ class Simulation:
         self.graph_generator = graph_generator
         self._last_agent_id = 0
 
-    def populate(self, count: int):
+    def populate(self, count: int) -> list[RDFAgent]:
+        agents = []
         for _ in range(count):
             self._last_agent_id += 1
-            self.add_rdf_agent(f"{AGENT_ADDRESS}/{PREFIX}{self._last_agent_id}", AGENT_PASSWORD)
+            agents.append(self.add_rdf_agent(f"{AGENT_ADDRESS}/{PREFIX}{self._last_agent_id}", AGENT_PASSWORD))
+        return agents
 
-    def add_rdf_agent(self, address: str, password: str):
+    def add_rdf_agent(self, address: str, password: str) -> RDFAgent:
         self._logger.debug(f"Adding RDF agent: {address}")
-        self._all_agents.append(RDFAgent(address, password, self))
+        agent = RDFAgent(address, password, self)
+        self._all_agents.append(agent)
+        return agent
 
     def start(self):
         self._logger.info("Starting simulation")
@@ -50,6 +54,14 @@ class Simulation:
         self.populate(agent_count)
         for agent in self._all_agents:
             await agent.start()
+
+    async def add_agent(self):
+        agent = self.populate(1)[0]
+        await agent.start()
+
+    async def pop_last_agent(self):
+        if len(self.active_agents) > 1:
+            await self.active_agents[-1].stop()
 
     @property
     def active_agents(self) -> list[RDFAgent]:

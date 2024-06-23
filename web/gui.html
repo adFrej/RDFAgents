@@ -37,7 +37,7 @@
 
         transition: border-color 0.5s;
         --scale: 1;
-        --border-scale: calc((var(--scale) - 1) / 2 + 1)
+        --border-scale: calc((var(--scale) - 1) / 2 + 1);
       }
 
       .knowledge__container--in-circle {
@@ -45,6 +45,7 @@
         top: calc(50% - var(--width) / 2 - 3px);
         left: calc(50% - var(--width) / 2 - 3px);
         transform: rotate(calc(360deg * var(--angle))) translateY(-20vmin) rotate(calc(-360deg * var(--angle)));
+        transition: transform 0.5s, opacity 0.4s, border-color 0.5s;
       }
 
       .knowledge__container--master {
@@ -117,23 +118,30 @@
         padding-left: 2rem;
         border-bottom-right-radius: 0.8rem;
         background: #28383a99;
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
       }
 
-      .panel-left__button {
+      .panel-left__item {
         font-family: "Inter", sans-serif;
         font-optical-sizing: auto;
-        font-weight: 450;
+        font-weight: 350;
         font-style: normal;
         font-variation-settings: "slnt" 0;
         font-size: 1.3rem;
         color: #c9d2c6;
+      }
+
+      .panel-left__item--clickable {
         cursor: pointer;
+        font-weight: 450;
       }
       
-      .panel-left__button:hover {
+      .panel-left__item--clickable:hover {
         color: #bfefc4;
       }
-      .panel-left__button:active {
+      .panel-left__item--clickable:active {
         color: #ffefc4;
       }
     </style>
@@ -144,7 +152,13 @@
       <div id="global-markers" class="panel"></div>
     </div>
     <div id="panel-left" class="panel">
-      <div class="panel-left__button" onclick="buttonRestart()">Restart</div>
+      <div class="panel-left__item panel-left__item--clickable" onclick="buttonRestart()">[Restart]</div>
+      <div>
+        <span class="panel-left__item">Agents:</span>
+        <span class="panel-left__item panel-left__item--clickable" onclick="buttonPopLastAgent()"> [-] </span>
+        <span id="agent-counter" class="panel-left__item">0</span>
+        <span class="panel-left__item panel-left__item--clickable" onclick="buttonAddAgent()"> [+] </span>
+      </div>
     </div>
     <script>
       // Endpoint utilities
@@ -161,9 +175,9 @@
 
 
       // State modificaiton
-      function buttonRestart() {
-        endpointPost("restart")
-      }
+      function buttonRestart() {endpointPost("restart")}
+      function buttonAddAgent() {endpointPost("add_agent")}
+      function buttonPopLastAgent() {endpointPost("pop_last_agent")}
 
 
       // Marker rendering
@@ -207,21 +221,28 @@
       function renderKnowledgeMarkers(knowledge, masters) {
         let root = document.getElementById("marker-root")
         for(let child of root.children) {
-          if(!knowledge[child.id]) child.remove()
+          if(!knowledge[child.id]) {
+            child.style.setProperty("opacity", 0)
+            setTimeout((marker) => marker.remove(), 400, child)
+          }
         }
 
         masters = new Set(masters)
 
         let i = 0
         for(let agent in knowledge) {
-          if(!document.getElementById(agent)) 
-            root.appendChild(makeKnowledgeMarker(agent, "knowledge__container--in-circle"))
+          if(!document.getElementById(agent)) {
+            let newMarker = makeKnowledgeMarker(agent, "knowledge__container--in-circle")
+            newMarker.style.setProperty("opacity", 0)
+            setTimeout((marker) => marker.style.setProperty("opacity", 1), 10, newMarker)
+            root.appendChild(newMarker)
+          }
 
-            let marker = document.getElementById(agent)
-            updateKnowledgeMarker(marker, knowledge[agent])
-            marker.style.setProperty("--angle", i/Object.keys(knowledge).length)
-            marker.classList.toggle("knowledge__container--master", masters.has(agent))
-            i += 1
+          let marker = document.getElementById(agent)
+          updateKnowledgeMarker(marker, knowledge[agent])
+          marker.style.setProperty("--angle", i/Object.keys(knowledge).length)
+          marker.classList.toggle("knowledge__container--master", masters.has(agent))
+          i += 1
         }
 
         updateGlobalMarkers(knowledge)
@@ -295,6 +316,7 @@
       function renderState(state) {
         updateGlobalState("total_triples", state["total_triples"], updateKnowledgeMarkerWidth) // TODO
         renderKnowledgeMarkers(state["agent_knowledge"], state["merge_masters"])
+        document.getElementById("agent-counter").innerText = Object.keys(state["agent_knowledge"]).length
         console.log(state)
       }
       setInterval(() => {
