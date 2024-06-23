@@ -20,7 +20,16 @@ class EndpointsContext:
                 web_agent.web.add_get("/api/"+name, wrapped(func), template=None)
 
     def endpoint_get_state(self) -> dict:
-        return {'k': 1234}
+        state = {
+            'total_triples': len(self.simulation.graph_generator.ground_truth),
+            'agent_knowledge': {}
+        }
+
+        markers = self.simulation.graph_generator.triple_markers
+        for agent in self.simulation.active_agents:
+            state['agent_knowledge'][str(agent.jid)] = [int(markers[k]) for k in agent.doc.cached_state.keys()]
+        
+        return state
     
     def endpoint_set_state(self, state: int) -> dict:
         print(state)

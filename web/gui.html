@@ -2,9 +2,62 @@
 <html>
   <head>
     <title>RDFAgents - simulation GUI</title>
+    <style>
+      body {
+        background: radial-gradient( circle at center in hsl shorter hue, #517970 15%, #374f54);
+        width: 100vw;
+        margin: 0;
+        height: 100vh;
+      }
+
+      :root {
+        --marker-dot-size: 6px;
+      }
+
+      #marker-root {
+        width: 100%;
+        height: 100%;
+        position: absolute;
+      }
+
+      .knowledge__container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1px;
+        --width: calc(var(--marker-dot-size) * var(--marker-width) + 1px * (var(--marker-width) - 1));
+        width: var(--width);
+
+        padding: 2px;
+        border: #2f3e46 3px solid;
+        border-radius: 4px;
+      }
+
+      .knowledge__container--in-circle {
+        position: absolute;
+        top: calc(50% - var(--width) / 2 - 3px);
+        left: calc(50% - var(--width) / 2 - 3px);
+        transform: rotate(calc(360deg * var(--angle))) translateY(-20vmin) rotate(calc(-360deg * var(--angle)));
+      }
+
+      .knowledge__marker {
+        width: var(--marker-dot-size);
+        height: var(--marker-dot-size);
+      }
+      .knowledge__marker--black {
+        background: #374f54;
+      }
+      .knowledge__marker--green {
+        background: #7ce495;
+      }
+      .knowledge__marker--red {
+        background: #ff6f6f;
+      }
+    </style>
   </head>
   <body>
+    <div id="marker-root"></div>
     <script>
+      // Endpoint utilities
       async function endpointGet(url) {
         let response = await fetch("/api/" + url);
         let data = await response.json();
@@ -15,8 +68,81 @@
         let response = await fetch("/api/" + url + "?" + new URLSearchParams(params));
       }
 
-      endpointGet("get_state").then(console.warn)
-      endpointPost("set_state", {state: 17})
+
+
+      // Marker rendering
+      function makeKnowledgeMarker(id) {
+        const container = document.createElement("div");
+        container.className = "knowledge__container knowledge__container--in-circle"
+        container.id = id
+
+        for(let i=0;i<GLOBAL_STATE.total_triples;i++) {
+          const marker = document.createElement("div");
+          marker.className = "knowledge__marker knowledge__marker--black"
+          container.appendChild(marker)
+        }
+
+        return container
+      }
+
+      function updateKnowledgeMarker(marker, knowledge) {
+        let state = {}
+        for(let k of knowledge) {
+          if(k > 0 && !state[k]) state[k] = "green"
+          if(k < 0) state[-k] = "red"
+        }
+
+        let markers = marker.children
+        for(let i=1;i<=GLOBAL_STATE["total_triples"]; i++) {
+          markers[i-1].className = `knowledge__marker knowledge__marker--${state[i] || "black"}`
+        }
+      }
+
+      function renderKnowledgeMarkers(knowledge) {
+        let root = document.getElementById("marker-root")
+        for(let child of root.children) {
+          if(!knowledge[child.id]) child.remove()
+        }
+        // TODO - removing old
+        let i = 0
+        for(let agent in knowledge) {
+          if(!document.getElementById(agent)) 
+            root.appendChild(makeKnowledgeMarker(agent))
+
+            let marker = document.getElementById(agent)
+            updateKnowledgeMarker(marker, knowledge[agent])
+            marker.style.setProperty("--angle", i/Object.keys(knowledge).length)
+            i += 1
+        }
+
+
+      }
+
+      function updateKnowledgeMarkerWidth() {
+        document.body.style.setProperty("--marker-width", Math.ceil(Math.sqrt(GLOBAL_STATE["total_triples"])))
+        for(let child of document.getElementById("marker-root").children) child.remove()
+      }
+
+
+      // State and main loop
+      const GLOBAL_STATE = {}
+      function updateGlobalState(key, value, onChange) {
+        let changed = GLOBAL_STATE[key] != value
+        GLOBAL_STATE[key] = value
+        if(changed) onChange()
+        return changed
+      }
+
+      function renderState(state) {
+        updateGlobalState("total_triples", state["total_triples"], updateKnowledgeMarkerWidth) // TODO
+        renderKnowledgeMarkers(state["agent_knowledge"])
+        
+      }
+      setInterval(() => {
+        endpointGet("get_state").then(renderState)
+      }, 500)
+
+      
     </script>  
   </body>
 </html>
