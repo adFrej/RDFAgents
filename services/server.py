@@ -9,3 +9,6 @@ class Server:
     def register_agent(self, address: str):
         self.logger.debug(f"Registering agent {address}")
         self.registered_agents.add(address)
+
+    def restart(self):
+        self.registered_agents = set()

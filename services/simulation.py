@@ -13,10 +13,12 @@ class Simulation:
         self._all_agents: list[RDFAgent] = []
         self.server = server
         self.graph_generator = graph_generator
+        self._last_agent_id = 0
 
     def populate(self, count: int):
-        for i in range(1, count):
-            self.add_rdf_agent(f"{AGENT_ADDRESS}/{i}", AGENT_PASSWORD)
+        for _ in range(count):
+            self._last_agent_id += 1
+            self.add_rdf_agent(f"{AGENT_ADDRESS}/{self._last_agent_id}", AGENT_PASSWORD)
 
     def add_rdf_agent(self, address: str, password: str):
         self._logger.debug(f"Adding RDF agent: {address}")
@@ -36,6 +38,18 @@ class Simulation:
                     agent.stop()
                 break
         self._logger.info("Simulation stopped")
+
+    async def restart(self):
+        agent_count = len(self._all_agents)
+        for agent in self._all_agents:
+            await agent.stop()
+        self._all_agents = []
+        
+        self.server.restart()
+        self.graph_generator.restart()
+        self.populate(agent_count)
+        for agent in self._all_agents:
+            await agent.start()
 
     @property
     def active_agents(self) -> list[RDFAgent]:

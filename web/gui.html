@@ -21,6 +21,7 @@
         width: 100%;
         height: 100%;
         position: absolute;
+        z-index: -1;
       }
 
       .knowledge__container {
@@ -82,12 +83,15 @@
       #global-markers {
         display: flex;
         gap: 1.8rem;
-        background: #364a4e99;
         width: fit-content;
-        padding: 0.9rem;
         padding-bottom: 2rem;
         border-top-left-radius: 0.8rem;
         border-top-right-radius: 0.8rem;
+      }
+
+      .panel {
+        background: #364a4e99;
+        padding: 0.9rem;
       }
 
       .global-marker__container {
@@ -106,12 +110,41 @@
         font-size: 1.5rem;
         color: #c9d2c6;
       }
+
+      #panel-left {
+        width: fit-content;
+        height: fit-content;
+        padding-left: 2rem;
+        border-bottom-right-radius: 0.8rem;
+        background: #28383a99;
+      }
+
+      .panel-left__button {
+        font-family: "Inter", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 450;
+        font-style: normal;
+        font-variation-settings: "slnt" 0;
+        font-size: 1.3rem;
+        color: #c9d2c6;
+        cursor: pointer;
+      }
+      
+      .panel-left__button:hover {
+        color: #bfefc4;
+      }
+      .panel-left__button:active {
+        color: #ffefc4;
+      }
     </style>
   </head>
   <body>
     <div id="marker-root"></div>
     <div id="panel-bottom">
-      <div id="global-markers"></div>
+      <div id="global-markers" class="panel"></div>
+    </div>
+    <div id="panel-left" class="panel">
+      <div class="panel-left__button" onclick="buttonRestart()">Restart</div>
     </div>
     <script>
       // Endpoint utilities
@@ -121,10 +154,16 @@
         return data;
       }
 
-      async function endpointPost(url, params) {
+      async function endpointPost(url, params={}) {
         let response = await fetch("/api/" + url + "?" + new URLSearchParams(params));
       }
 
+
+
+      // State modificaiton
+      function buttonRestart() {
+        endpointPost("restart")
+      }
 
 
       // Marker rendering
@@ -143,6 +182,7 @@
       }
 
       function knowledgeToDict(knowledge) {
+        if(!knowledge) return {}
         let state = {}
         for(let k of knowledge) {
           if(k > 0 && !state[k]) state[k] = "green"

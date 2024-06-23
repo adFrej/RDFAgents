@@ -12,8 +12,12 @@ class GraphGenerator:
         self.triple_generator = triple_generator or TripleGenerator(self.random)
         self.mutation_chance = mutation_chance
         self.uncover_outdated_chance = uncover_outdated_chance
+        self.total_triples = total_triples
 
-        self.ground_truth = [self.triple_generator.generate_triple() for _ in range(total_triples)]
+        self.restart()
+
+    def restart(self) -> None:
+        self.ground_truth = [self.triple_generator.generate_triple() for _ in range(self.total_triples)]
         self.triple_markers = {t.hash: i+1 for i, t in enumerate(self.ground_truth)}
 
     def uncover_graph_fragment(self, known_triples: dict[str, RDFTriple]) -> tuple[str, RDFTriple]:
