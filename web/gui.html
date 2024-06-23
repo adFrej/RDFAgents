@@ -2,6 +2,9 @@
 <html>
   <head>
     <title>RDFAgents - simulation GUI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
     <style>
       body {
         background: radial-gradient( circle at center in hsl shorter hue, #517970 15%, #374f54);
@@ -23,15 +26,17 @@
       .knowledge__container {
         display: flex;
         flex-wrap: wrap;
-        gap: 1px;
-        --width: calc(var(--marker-dot-size) * var(--marker-width) + 1px * (var(--marker-width) - 1));
+        gap: calc(1px * var(--scale));
+        --width: calc((var(--marker-dot-size) * var(--marker-width) + 1px * (var(--marker-width) - 1)) * var(--scale));
         width: var(--width);
 
-        padding: 2px;
-        border: #2f3e46 3px solid;
-        border-radius: 4px;
+        padding: calc(2px * var(--border-scale));
+        border: #2f3e46 calc(3px * var(--border-scale)) solid;
+        border-radius: calc(4px * var(--border-scale));
 
         transition: border-color 0.5s;
+        --scale: 1;
+        --border-scale: calc((var(--scale) - 1) / 2 + 1)
       }
 
       .knowledge__container--in-circle {
@@ -45,9 +50,14 @@
         border-color: #bfefc4;
       }
 
+
+      .knowledge__container--global {
+        --scale: 2;
+      }
+
       .knowledge__marker {
-        width: var(--marker-dot-size);
-        height: var(--marker-dot-size);
+        width: calc(var(--marker-dot-size) * var(--scale));
+        height: calc(var(--marker-dot-size) * var(--scale));
         transition: background 0.5s;
       }
       .knowledge__marker--black {
@@ -59,10 +69,50 @@
       .knowledge__marker--red {
         background: #ff6f6f;
       }
+
+
+      #panel-bottom {
+        position: absolute;
+        width: 100%;
+        bottom: 0;
+        display: flex;
+        justify-content: space-around;
+      }
+
+      #global-markers {
+        display: flex;
+        gap: 1.8rem;
+        background: #364a4e99;
+        width: fit-content;
+        padding: 0.9rem;
+        padding-bottom: 2rem;
+        border-top-left-radius: 0.8rem;
+        border-top-right-radius: 0.8rem;
+      }
+
+      .global-marker__container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .global-marker__label {
+        font-family: "Inter", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 450;
+        font-style: normal;
+        font-variation-settings: "slnt" 0;
+        font-size: 1.5rem;
+        color: #c9d2c6;
+      }
     </style>
   </head>
   <body>
     <div id="marker-root"></div>
+    <div id="panel-bottom">
+      <div id="global-markers"></div>
+    </div>
     <script>
       // Endpoint utilities
       async function endpointGet(url) {
@@ -78,9 +128,9 @@
 
 
       // Marker rendering
-      function makeKnowledgeMarker(id) {
+      function makeKnowledgeMarker(id, extraClasses="") {
         const container = document.createElement("div");
-        container.className = "knowledge__container knowledge__container--in-circle"
+        container.className = "knowledge__container " + extraClasses
         container.id = id
 
         for(let i=0;i<GLOBAL_STATE.total_triples;i++) {
@@ -92,13 +142,22 @@
         return container
       }
 
-      function updateKnowledgeMarker(marker, knowledge) {
+      function knowledgeToDict(knowledge) {
         let state = {}
         for(let k of knowledge) {
           if(k > 0 && !state[k]) state[k] = "green"
           if(k < 0) state[-k] = "red"
         }
+        return state
+      }
 
+      function isDict(v) {
+          return typeof v==='object' && v!==null && !(v instanceof Array) && !(v instanceof Date);
+      }
+
+      function updateKnowledgeMarker(marker, knowledge) {
+        let state = knowledge
+        if(!isDict(state)) state = knowledgeToDict(knowledge)
         let markers = marker.children
         for(let i=1;i<=GLOBAL_STATE["total_triples"]; i++) {
           markers[i-1].className = `knowledge__marker knowledge__marker--${state[i] || "black"}`
@@ -116,7 +175,7 @@
         let i = 0
         for(let agent in knowledge) {
           if(!document.getElementById(agent)) 
-            root.appendChild(makeKnowledgeMarker(agent))
+            root.appendChild(makeKnowledgeMarker(agent, "knowledge__container--in-circle"))
 
             let marker = document.getElementById(agent)
             updateKnowledgeMarker(marker, knowledge[agent])
@@ -125,12 +184,62 @@
             i += 1
         }
 
+        updateGlobalMarkers(knowledge)
+      }
 
+      function initGlobalMarkers() {
+        let root = document.getElementById("global-markers")
+        for(let child of root.children) child.remove()
+        for(let key of ["Worst", "Best", "Total"]) {
+          let div = document.createElement("div")
+          div.appendChild(makeKnowledgeMarker(`global-marker-${key.toLowerCase()}`, 'knowledge__container--global'))
+          div.classList = "global-marker__container"
+          let span = document.createElement("span")
+          span.innerText = key
+          span.classList = "global-marker__label"
+          div.appendChild(span)
+          root.appendChild(div)
+        }
+      }
+
+      function updateGlobalMarkers(knowledge) {
+        let totalKnowledge = {}
+        let worstScore = Infinity, worstAgent = null
+        let bestScore = -Infinity, bestAgent = null
+
+        for(let agent in knowledge) {
+          let state = knowledgeToDict(knowledge[agent])
+          let score = 0
+          for(let key in state) {
+            if(state[key] == "green") {
+              totalKnowledge[key] = "green"
+              score += 1
+            }
+            if(state[key] == "red") {
+              if(!totalKnowledge[key]) totalKnowledge[key] = "red"
+              score -= 1
+            }
+          }
+
+          if(score < worstScore) {
+            worstAgent = agent
+            worstScore = score
+          }
+          if(score > bestScore) {
+            bestAgent = agent
+            bestScore = score
+          }
+        }
+
+        updateKnowledgeMarker(document.getElementById("global-marker-worst"), knowledge[worstAgent])
+        updateKnowledgeMarker(document.getElementById("global-marker-best"), knowledge[bestAgent])
+        updateKnowledgeMarker(document.getElementById("global-marker-total"), totalKnowledge)
       }
 
       function updateKnowledgeMarkerWidth() {
         document.body.style.setProperty("--marker-width", Math.ceil(Math.sqrt(GLOBAL_STATE["total_triples"])))
-        for(let child of document.getElementById("marker-root").children) child.remove()
+        for(let marker of document.getElementsByClassName(".knowledge__container")) marker.remove()
+        initGlobalMarkers()
       }
 
 
