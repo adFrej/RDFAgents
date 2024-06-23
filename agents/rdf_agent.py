@@ -14,6 +14,7 @@ from services.rdf_document import RDFDocument, RDFRevision
 
 KNOWN_AGENTS_TTL = 10
 STATUS_SEND_PERIOD = 5
+LOCAL_REVISION_CREATE_PERIOD = 5
 
 
 class RDFAgent(Agent):
@@ -40,6 +41,11 @@ class RDFAgent(Agent):
         if str(self.jid) == self.merge_master:
             return RDFAgent.KnownAgent(str(self.jid), self.uuid, self.doc.current_hash, "online")
         return self.known_agents[self.merge_master]
+
+    async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
+        for agent in self.known_agents.values():
+            self.logger.debug(f"Sending revision to {agent.jid}")
+            await behaviour.send(RevisionMessage(to=agent.jid, revision=revision))
 
     class RegisterAgentOnServer(OneShotBehaviour):
         async def run(self):
@@ -83,10 +89,8 @@ class RDFAgent(Agent):
             self.agent.doc.parse_fragment(*fragment)
             revision = self.agent.doc.current_revision
 
-            if self.agent.merge_master_agent.latest_revision in revision.parents:
-                for agent in self.agent.known_agents.values():
-                    self.agent.logger.debug(f"Sending revision to {agent.jid}")
-                    await self.send(RevisionMessage(to=agent.jid, revision=revision))
+            if self.agent.merge_master_agent.latest_revision in self.agent.doc.all_ancestors(revision):
+                await self.agent.send_revision(revision, self)
 
     class RemoteRevisionReceive(CyclicBehaviour):
         async def run(self):
@@ -107,19 +111,19 @@ class RDFAgent(Agent):
 
                 if revision.is_merge and self.agent.doc.can_rebase(revision):
                     self.agent.logger.debug(f"Rebasing revision from {msg.sender}")
-                    self.agent.doc.rebase_revision(revision)
+                    rebased = self.agent.doc.rebase_revision(revision)
+                    for rev in rebased:
+                        await self.agent.send_revision(rev, self)
 
                 if str(self.agent.jid) == self.agent.merge_master:
                     self.agent.logger.debug(f"Merging revision from {msg.sender}")
                     merge_revision = self.agent.doc.merge_revision(revision)
                     self.agent.doc.append_revision(merge_revision)
-                    for agent in self.agent.known_agents.values():
-                        self.agent.logger.debug(f"Sending merge revision to {agent.jid}")
-                        await self.send(RevisionMessage(to=agent.jid, revision=merge_revision))
+                    await self.agent.send_revision(merge_revision, self)
 
     async def setup(self):
         self.add_behaviour(self.RegisterAgentOnServer())
         self.add_behaviour(self.StatusReceive())
         self.add_behaviour(self.StatusSend(period=STATUS_SEND_PERIOD))
         self.add_behaviour(self.RemoteRevisionReceive())
-        self.add_behaviour(self.LocalRevisionCreate(period=1, start_at=datetime.datetime.now() + datetime.timedelta(seconds=4)))
+        self.add_behaviour(self.LocalRevisionCreate(period=LOCAL_REVISION_CREATE_PERIOD, start_at=datetime.datetime.now() + datetime.timedelta(seconds=4)))

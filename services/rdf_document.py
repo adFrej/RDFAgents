@@ -1,6 +1,7 @@
 import hashlib
 import json
 import time
+from collections import deque
 from typing import Optional
 
 
@@ -43,22 +44,92 @@ class RDFDocument:
         elif operation == "-":
             self.remove(triple)
 
+    def all_ancestors(self, revision: 'RDFRevision') -> set[str]:
+        ancestors = set()
+        for parent in revision.parents:
+            ancestors.add(parent)
+            ancestors.update(self.all_ancestors(self.revisions[parent]))
+        return ancestors
+
     def can_rebase(self, revision: 'RDFRevision') -> bool:
-        for rev in reversed(self.revisions.values()):
-            if rev.hash in revision.parents:
-                return True
+        ancestor = self.common_ancestor(revision)
+        if ancestor is None:
+            return False
+        between = self.revisions_between(ancestor, revision.hash)
+        for rev in between:
             if rev.author_uuid != self.author_uuid:
                 return False
-        return False
+        return True
+
+    def common_ancestor(self, revision: 'RDFRevision') -> Optional['RDFRevision']:
+        visited_1 = {self.current_revision}
+        visited_2 = {revision}
+        to_visit_1 = deque([self.current_revision])
+        to_visit_2 = deque([revision])
+        while len(to_visit_1) > 0 or len(to_visit_2) > 0:
+            if len(to_visit_1) > 0:
+                current_1 = to_visit_1.popleft()
+                visited_1.add(current_1)
+                if current_1 in visited_2:
+                    return current_1
+                for parent in current_1.parents:
+                    if parent not in visited_1:
+                        to_visit_1.append(self.revisions[parent])
+            if len(to_visit_2) > 0:
+                current_2 = to_visit_2.popleft()
+                visited_2.add(current_2)
+                if current_2 in visited_1:
+                    return current_2
+                for parent in current_2.parents:
+                    if parent not in visited_2:
+                        to_visit_2.append(self.revisions[parent])
+        return None
+
+    def revisions_between(self, revision: 'RDFRevision', hash_: str) -> list['RDFRevision']:
+        if revision.hash == hash_:
+            return []
+        to_visit = deque([[revision]])
+        while len(to_visit) > 0:
+            current = to_visit.popleft()
+            current_rev = current[-1]
+            if current_rev.hash == hash_:
+                return current
+            for parent in current_rev.parents:
+                to_visit.append(current + [self.revisions[parent]])
+        raise Exception("There is no path between the revisions")
+
+    @staticmethod
+    def combine_revisions(revisions: list['RDFRevision']) -> 'RDFRevision':
+        if len(revisions) == 1:
+            return revisions[0]
+        return RDFDocument.combine_revisions([revisions[0].combine(revisions[1])] + revisions[2:])
 
     def append_revision(self, revision: 'RDFRevision'):
-        pass
+        self.revisions[revision.hash] = revision
+        self.current_hash = revision.hash
 
-    def merge_revision(self, revision: 'RDFRevision'):
-        pass
+    def merge_revision(self, revision: 'RDFRevision') -> 'RDFRevision':
+        ancestor = self.common_ancestor(revision)
+        if ancestor is None:
+            raise Exception("Can't merge revisions without a common ancestor")
+        revision1 = self.combine_revisions(self.revisions_between(ancestor, self.current_hash))
+        revision2 = self.combine_revisions(self.revisions_between(ancestor, revision.hash))
+        return revision1.combine(revision2)
 
-    def rebase_revision(self, revision: 'RDFRevision'):
-        pass
+    def rebase_revision(self, revision: 'RDFRevision') -> list['RDFRevision']:
+        ancestor = self.common_ancestor(revision)
+        if ancestor is None:
+            raise Exception("Can't rebase revisions without a common ancestor")
+        between = self.revisions_between(ancestor, self.current_hash)
+        r_next = revision
+        rebased = []
+        for r in between:
+            r.parents = [r_next.hash]
+            self.revisions.pop(r.hash)
+            self.append_revision(r)
+            r_next = r
+            rebased.append(r)
+        return rebased
 
 
 class RDFRevision:
@@ -82,6 +153,12 @@ class RDFRevision:
             del self.deltas_add[triple.hash]
         else:
             self.deltas_remove[triple.hash] = triple
+
+    def combine(self, revision: 'RDFRevision') -> 'RDFRevision':
+        new_revision = RDFRevision(parents=[self.hash, revision.hash], author=self.author_uuid, is_merge=True)
+        new_revision.deltas_add = {**self.deltas_add, **revision.deltas_add}
+        new_revision.deltas_remove = {**self.deltas_remove, **revision.deltas_remove}
+        return new_revision
 
     def __str__(self) -> str:
         return f"{self.hash}: +{list(self.deltas_add.values())} -{list(self.deltas_remove.values())}"
