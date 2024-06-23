@@ -29,7 +29,7 @@ class EndpointsContext:
         markers = self.simulation.graph_generator.triple_markers
         for agent in self.simulation.active_agents:
             state['agent_knowledge'][str(agent.jid)] = [int(markers[k]) for k in agent.doc.cached_state.keys()]
-            if str(agent.merge_master) == str(agent.jid): 
+            if agent.is_merge_master:
                 state['merge_masters'].append(str(agent.jid))
         
         return state

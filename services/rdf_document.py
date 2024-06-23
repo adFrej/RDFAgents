@@ -44,13 +44,6 @@ class RDFDocument:
         elif operation == "-":
             self.remove(triple)
 
-    def all_ancestors(self, revision: 'RDFRevision') -> set[str]:
-        ancestors = set()
-        for parent in revision.parents:
-            ancestors.add(parent)
-            ancestors.update(self.all_ancestors(self.revisions[parent]))
-        return ancestors
-
     def can_rebase(self, revision: 'RDFRevision') -> bool:
         ancestor = self.common_ancestor(revision)
         if ancestor is None:
