@@ -143,13 +143,14 @@ class RDFAgent(Agent):
                 revision = self.agent.doc.revisions[hash_]
                 if msg.sender == self.agent.merge_master:
                     if revision is not None and (revision.author_uuid == self.agent.uuid or
-                                                 revision.author_uuid not in self.agent.known_agents.keys()):
+                                                 revision.author_uuid not in self.agent.known_agents):
                         await self.agent.send_revision(revision, self)
                 elif self.agent.is_merge_master:
                     await self.agent.send_revision(revision, self)
 
     async def setup(self):
         self.add_behaviour(self.RegisterAgentOnServer())
+        self.add_behaviour(self.RevisionRequestReceive())
         self.add_behaviour(self.StatusReceive())
         self.add_behaviour(self.StatusSend(period=STATUS_SEND_PERIOD))
         self.add_behaviour(self.RemoteRevisionReceive())
