@@ -148,6 +148,11 @@ class RDFAgent(Agent):
                 elif self.agent.is_merge_master:
                     await self.agent.send_revision(revision, self)
 
+    async def stop(self):
+        self.logger.info("Agent is stopping")
+        self.simulation.server.deregister_agent(str(self.jid))
+        return super().stop()
+
     async def setup(self):
         self.add_behaviour(self.RegisterAgentOnServer())
         self.add_behaviour(self.RevisionRequestReceive())
@@ -155,3 +160,4 @@ class RDFAgent(Agent):
         self.add_behaviour(self.StatusSend(period=STATUS_SEND_PERIOD))
         self.add_behaviour(self.RemoteRevisionReceive())
         self.add_behaviour(self.LocalRevisionCreate(period=LOCAL_REVISION_CREATE_PERIOD, start_at=datetime.datetime.now() + datetime.timedelta(seconds=4)))
+        self.logger.info("Agent started")

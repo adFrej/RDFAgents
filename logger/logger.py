@@ -6,10 +6,6 @@ directory = ""
 
 
 def setup_logging():
-    logging.basicConfig(
-        level=logging.WARNING,
-        format="[%(levelname)s] %(asctime)s (%(name)s): %(message)s",
-    )
     global directory
     time_ = time.strftime("%Y-%m-%d_%H-%M-%S")
     directory = os.path.join("logs", time_)
@@ -17,6 +13,14 @@ def setup_logging():
         os.makedirs(directory)
     else:
         raise Exception(f"Directory {directory} already exists - cannot create logs")
+    logging.basicConfig(
+        level=logging.WARNING,
+        format="[%(levelname)s] %(asctime)s (%(name)s): %(message)s",
+        handlers=[
+            logging.FileHandler(os.path.join(directory, "log.log")),
+            logging.StreamHandler()
+        ]
+    )
 
 
 def get_logger(name: str) -> logging.Logger:
