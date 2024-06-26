@@ -11,7 +11,7 @@ from agents.revision_message import RevisionMessage, ONTOLOGY_REVISION
 from agents.revision_request_message import RevisionRequestMessage, ONTOLOGY_REVISION_REQUEST
 from agents.status_message import StatusMessage, ONTOLOGY_STATUS
 from logger.logger import get_logger
-from services.rdf_document import RDFDocument, RDFRevision
+from services.rdf_document import RDFDocument, RDFRevision, MissingRevision
 
 KNOWN_AGENTS_TTL = 10
 STATUS_SEND_PERIOD = 5
@@ -47,6 +47,19 @@ class RDFAgent(Agent):
             return RDFAgent.KnownAgent(str(self.jid), self.uuid, self.doc.current_hash, "online")
         return self.known_agents[self.merge_master]
 
+    def elect_merge_master(self):
+        if len(self.known_agents) == 0:
+            self.logger.debug("I am the merge master")
+            self.merge_master = str(self.jid)
+            return
+        min_jid = min(self.known_agents.keys())
+        if str(self.jid) < min_jid:
+            self.logger.debug("I am the merge master")
+            self.merge_master = str(self.jid)
+        else:
+            self.logger.debug(f"Merge master is {min_jid}")
+            self.merge_master = min_jid
+
     async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
         for agent in self.known_agents.values():
             self.logger.debug(f"Sending revision to {agent.jid}")
@@ -71,8 +84,10 @@ class RDFAgent(Agent):
                 # to be done better
                 if agent_jid in self.agent.known_agents:
                     if self.agent.known_agents[agent_jid].created + KNOWN_AGENTS_TTL < time.time():
-                        self.agent.logger.debug(f"Lost connection with {agent_jid}")
+                        self.agent.logger.warning(f"Lost connection with {agent_jid}")
                         del self.agent.known_agents[agent_jid]
+                        if agent_jid == self.agent.merge_master:
+                            self.agent.elect_merge_master()
 
     class StatusReceive(CyclicBehaviour):
         async def run(self):
@@ -80,19 +95,13 @@ class RDFAgent(Agent):
             if msg and msg.metadata["ontology"] == ONTOLOGY_STATUS:
                 self.agent.logger.debug(f"Received status message from {msg.sender}")
                 body = json.loads(msg.body)
-                self.agent.known_agents[str(msg.sender)] = RDFAgent.KnownAgent(str(msg.sender), body["status"], body["uuid"], body["latest_revision"])
+                self.agent.known_agents[str(msg.sender)] = RDFAgent.KnownAgent(str(msg.sender), body["uuid"], body["latest_revision"], body["status"])
 
                 hash_ = body["latest_revision"]
                 if hash_ not in self.agent.doc.revisions_hashes:
                     await self.agent.send_revision_request(hash_, str(msg.sender), self)
 
-                min_jid = min(self.agent.known_agents.keys())
-                if str(self.agent.jid) < min_jid:
-                    self.agent.logger.debug("I am the merge master")
-                    self.agent.merge_master = str(self.agent.jid)
-                else:
-                    self.agent.logger.debug(f"Merge master is {min_jid}")
-                    self.agent.merge_master = min_jid
+                self.agent.elect_merge_master()
 
     class LocalRevisionCreate(PeriodicBehaviour):
         async def run(self):
@@ -117,21 +126,32 @@ class RDFAgent(Agent):
                         self.agent.logger.debug(f"Requesting missing parent revision from {msg.sender}")
                         await self.agent.send_revision_request(parent, str(msg.sender), self)
 
-                if revision.hash not in self.agent.doc.revisions_hashes:
-                    self.agent.logger.debug(f"Revision from {msg.sender} is new")
+                if revision.hash in self.agent.doc.revisions_hashes:
+                    return
+                self.agent.logger.debug(f"Revision from {msg.sender} is new")
+
+                to_insert = True
+                try:
+                    if revision.is_merge and self.agent.doc.can_rebase(revision):
+                        to_insert = False
+                        self.agent.logger.debug(f"Rebasing revision from {msg.sender}")
+                        rebased = self.agent.doc.rebase_revision(revision)
+                        for rev in rebased:
+                            await self.agent.send_revision(rev, self)
+
+                    if self.agent.is_merge_master:
+                        merge_revision = self.agent.doc.merge_revision(revision)
+                        if merge_revision is not None:
+                            to_insert = False
+                            self.agent.logger.debug(f"Merging revision from {msg.sender}")
+                            self.agent.doc.append_revision(revision)
+                            self.agent.doc.append_revision(merge_revision)
+                            await self.agent.send_revision(merge_revision, self)
+                except MissingRevision:
+                    self.agent.logger.warning(f"Detected missing ancestor revision from {msg.sender}")
+
+                if to_insert:
                     self.agent.doc.append_revision(revision)
-
-                if revision.is_merge and self.agent.doc.can_rebase(revision):
-                    self.agent.logger.debug(f"Rebasing revision from {msg.sender}")
-                    rebased = self.agent.doc.rebase_revision(revision)
-                    for rev in rebased:
-                        await self.agent.send_revision(rev, self)
-
-                if self.agent.is_merge_master:
-                    self.agent.logger.debug(f"Merging revision from {msg.sender}")
-                    merge_revision = self.agent.doc.merge_revision(revision)
-                    self.agent.doc.append_revision(merge_revision)
-                    await self.agent.send_revision(merge_revision, self)
 
     class RevisionRequestReceive(CyclicBehaviour):
         async def run(self):
@@ -140,10 +160,12 @@ class RDFAgent(Agent):
                 self.agent.logger.debug(f"Received revision request from {msg.sender}")
                 body = json.loads(msg.body)
                 hash_ = body["hash"]
-                revision = self.agent.doc.revisions[hash_]
+                revision = self.agent.doc.revisions.get(hash_)
+                if revision is None:
+                    self.agent.logger.warning(f"Revision requested by {msg.sender} not found")
+                    return
                 if msg.sender == self.agent.merge_master:
-                    if revision is not None and (revision.author_uuid == self.agent.uuid or
-                                                 revision.author_uuid not in self.agent.known_agents):
+                    if revision.author_uuid == self.agent.uuid or revision.author_uuid not in self.agent.known_agents:
                         await self.agent.send_revision(revision, self)
                 elif self.agent.is_merge_master:
                     await self.agent.send_revision(revision, self)
