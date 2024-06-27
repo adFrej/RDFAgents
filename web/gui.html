@@ -144,6 +144,11 @@
       .panel-left__item--clickable:active {
         color: #ffefc4;
       }
+
+      .animated-marker {
+        position: absolute;
+        --scale: 1;
+      }
     </style>
   </head>
   <body>
@@ -159,6 +164,9 @@
         <span id="agent-counter" class="panel-left__item">0</span>
         <span class="panel-left__item panel-left__item--clickable" onclick="buttonAddAgent()"> [+] </span>
       </div>
+    </div>
+    <div id="animation-layer">
+
     </div>
     <script>
       // Endpoint utilities
@@ -304,6 +312,45 @@
       }
 
 
+      // Change animations
+      const TICK_RATE = 500
+      function addFloatingTick(color, from, to, timescale) {
+        const marker = document.createElement("div");
+        marker.className = `knowledge__marker animated-marker knowledge__marker--${color}`
+        marker.style.setProperty("left", from["x"]+"px")
+        marker.style.setProperty("top", from["y"]+"px")
+        marker.style.setProperty("opacity", 0)
+        marker.style.setProperty("transition", `left ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), top ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), opacity ${Math.round(timescale/3)}ms`)
+        document.getElementById("animation-layer").appendChild(marker)
+        
+        setTimeout(marker => {
+          marker.style.setProperty("left", to["x"]+"px")
+          marker.style.setProperty("top", to["y"]+"px")
+          marker.style.setProperty("opacity", 1)
+        }, 1, marker)
+        setTimeout(marker => {
+          marker.style.setProperty("opacity", 0)
+        }, timescale, marker)
+        setTimeout(marker => {
+          marker.remove()
+        }, timescale*4/3, marker)
+      }
+
+      function parseChangeLog(changes) {
+        let timescale = TICK_RATE/changes.uncovered.length
+        for(let i in changes.uncovered) {
+          setTimeout(change => {
+            let targetTick = document.getElementById(change[0]).children[Math.abs(change[2])-1].getBoundingClientRect()
+            let targetPos = {x: targetTick.x, y: targetTick.y}
+            let startPos = {
+              x: (targetTick.x-window.innerWidth/2)*1.25 + window.innerWidth/2,
+              y: (targetTick.y-window.innerHeight/2)*1.25 + window.innerHeight/2
+            }
+            addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE)
+          }, timescale*i, changes.uncovered[i])
+        }
+      }
+
       // State and main loop
       const GLOBAL_STATE = {}
       function updateGlobalState(key, value, onChange) {
@@ -317,11 +364,12 @@
         updateGlobalState("total_triples", state["total_triples"], updateKnowledgeMarkerWidth) // TODO
         renderKnowledgeMarkers(state["agent_knowledge"], state["merge_masters"])
         document.getElementById("agent-counter").innerText = Object.keys(state["agent_knowledge"]).length
-        console.log(state)
+        parseChangeLog(state["changes"])
+        // console.log(state)
       }
       setInterval(() => {
         endpointGet("get_state").then(renderState)
-      }, 500)
+      }, TICK_RATE)
 
       
     </script>  

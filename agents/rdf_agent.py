@@ -11,11 +11,12 @@ from agents.revision_message import RevisionMessage, ONTOLOGY_REVISION
 from agents.revision_request_message import RevisionRequestMessage, ONTOLOGY_REVISION_REQUEST
 from agents.status_message import StatusMessage, ONTOLOGY_STATUS
 from logger.logger import get_logger
+from services.change_log import ChangeLog
 from services.rdf_document import RDFDocument, RDFRevision, MissingRevision
 
 KNOWN_AGENTS_TTL = 10
 STATUS_SEND_PERIOD = 5
-LOCAL_REVISION_CREATE_PERIOD = 5
+LOCAL_REVISION_CREATE_PERIOD = 2
 
 
 class RDFAgent(Agent):
@@ -108,6 +109,7 @@ class RDFAgent(Agent):
             self.agent.logger.debug("Creating new local revision")
             self.agent.doc.new_revision()
             fragment = self.agent.simulation.graph_generator.uncover_graph_fragment(self.agent.doc.cached_state)
+            ChangeLog.log("uncovered", (str(self.agent.jid), fragment[0], fragment[1].hash))
             self.agent.doc.parse_fragment(*fragment)
             revision = self.agent.doc.current_revision
 

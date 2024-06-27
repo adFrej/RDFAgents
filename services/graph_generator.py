@@ -23,9 +23,9 @@ class GraphGenerator:
     def uncover_graph_fragment(self, known_triples: dict[str, RDFTriple]) -> tuple[str, RDFTriple]:
         if self.random.random() < self.mutation_chance:
             tid = self.get_random_triple_id()
-            self.triple_markers[self.ground_truth[tid].hash] = -tid
+            self.triple_markers[self.ground_truth[tid].hash] = -tid-1
             self.ground_truth[tid] = self.triple_generator.generate_triple()
-            self.triple_markers[self.ground_truth[tid].hash] = tid
+            self.triple_markers[self.ground_truth[tid].hash] = tid+1
         if self.random.random() < self.uncover_outdated_chance:
             removed = list(set(known_triples.keys()).difference({t.hash for t in self.ground_truth}))
             if len(removed) > 0:

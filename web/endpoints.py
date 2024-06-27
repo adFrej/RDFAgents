@@ -1,5 +1,6 @@
 from typing import Callable
 from spade.agent import Agent
+from services.change_log import ChangeLog
 from services.simulation import Simulation
 import inspect
 
@@ -31,6 +32,10 @@ class EndpointsContext:
             state['agent_knowledge'][str(agent.jid)] = [int(markers[k]) for k in agent.doc.cached_state.keys()]
             if agent.is_merge_master:
                 state['merge_masters'].append(str(agent.jid))
+
+        state["changes"] = {
+            "uncovered": [(a, o, int(markers[t])) for a,o,t in ChangeLog.read("uncovered")]
+        }
         
         return state
     
