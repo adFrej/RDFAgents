@@ -14,6 +14,7 @@ class Simulation:
         self.server = server
         self.graph_generator = graph_generator
         self._last_agent_id = 0
+        self.is_restarting = False
 
     def populate(self, count: int) -> list[RDFAgent]:
         agents = []
@@ -34,7 +35,7 @@ class Simulation:
             future = agent.start()
             future.result()
 
-        while len(self.active_agents) > 0:
+        while len(self.active_agents) > 0 or self.is_restarting:
             try:
                 time.sleep(10)
             except KeyboardInterrupt:
@@ -44,6 +45,7 @@ class Simulation:
         self._logger.info("Simulation stopped")
 
     async def restart(self):
+        self.is_restarting = True
         agent_count = len(self._all_agents)
         for agent in self._all_agents:
             await agent.stop()
@@ -54,6 +56,7 @@ class Simulation:
         self.populate(agent_count)
         for agent in self._all_agents:
             await agent.start()
+        self.is_restarting = False
 
     async def add_agent(self):
         agent = self.populate(1)[0]

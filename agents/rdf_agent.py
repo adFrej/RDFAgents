@@ -180,7 +180,7 @@ class RDFAgent(Agent):
     async def stop(self):
         self.logger.info("Agent is stopping")
         self.simulation.server.deregister_agent(str(self.jid))
-        return super().stop()
+        return await super().stop()
 
     async def setup(self):
         self.add_behaviour(self.RegisterAgentOnServer())
