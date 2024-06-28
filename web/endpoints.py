@@ -35,7 +35,7 @@ class EndpointsContext:
 
         transformers = {
             "uncovered": lambda a, o, t: (a, o, int(markers[t])),
-            "message": lambda *args: args
+            "message": lambda l, f, t, v: (l, f, t, {k: [int(markers[vvv]) for vvv in vv] for k, vv in v.items()}) if v is not None else (l, f, t)
         }
         state["changes"] = [[e[0], *transformers[e[0]](*e[1:])] for e in ChangeLog.read()]
         

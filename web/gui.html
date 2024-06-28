@@ -332,13 +332,13 @@
 
       // Change animations
       const TICK_RATE = 750
-      function addFloatingTick(color, from, to, timescale) {
+      function addFloatingTick(color, from, to, timescale, transition) {
         const marker = document.createElement("div");
         marker.className = `knowledge__marker animated-marker knowledge__marker--${color}`
         marker.style.setProperty("left", from["x"]+"px")
         marker.style.setProperty("top", from["y"]+"px")
         marker.style.setProperty("opacity", 0)
-        marker.style.setProperty("transition", `left ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), top ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), opacity ${Math.round(timescale/3)}ms`)
+        marker.style.setProperty("transition", `left ${timescale}ms ${transition}, top ${timescale}ms ${transition}, opacity ${Math.round(timescale/3)}ms`)
         document.getElementById("animation-layer").appendChild(marker)
 
         setTimeout(marker => {
@@ -384,20 +384,30 @@
           x: (targetTick.x-window.innerWidth/2)*1.25 + window.innerWidth/2,
           y: (targetTick.y-window.innerHeight/2)*1.25 + window.innerHeight/2
         }
-        addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE)
+        addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE, "cubic-bezier(0.36, 0, 0.66, -0.56)")
       }
 
-      function elToPos(el) {
+      function elToPos(el, middle=true) {
         let rect = el.getBoundingClientRect()
-        return {x: rect.x+rect.width/2, y: rect.y+rect.height/2}
+        return {x: rect.x+rect.width/2*middle, y: rect.y+rect.height/2*middle}
       }
 
       function parseMessage(change) {
         let start = document.getElementById(change[1])
         let end = document.getElementById(change[2])
-        console.log(change[0])
         if(change[0] == "revision") {
-
+          let colors = {}
+          for(let c of change[3]["-"]) colors[Math.abs(c)-1] = "black"
+          for(let c of change[3]["+"]) if(c>0) colors[c-1] = "green"
+          for(let c in colors) {
+            addFloatingTick(
+              colors[c], 
+              elToPos(start.children[c], false), 
+              elToPos(end.children[c], false),
+              TICK_RATE,
+              "cubic-bezier(0.32, 0, 0.67, 0)"
+            )
+          }
         } else {
           addFloatingLetter(change[0][0], elToPos(start), elToPos(end), TICK_RATE)
         } 

@@ -1,6 +1,7 @@
 import json
 import time
 import datetime
+from typing import Optional
 from uuid import uuid4
 
 from spade.agent import Agent
@@ -62,14 +63,17 @@ class RDFAgent(Agent):
             self.logger.debug(f"Merge master is {min_jid}")
             self.merge_master = min_jid
 
-    async def send_and_log(self, behaviour: CyclicBehaviour, message: Message, label: str):
-        ChangeLog.log("message", (label, str(self.jid), str(message.to)))
+    async def send_and_log(self, behaviour: CyclicBehaviour, message: Message, label: str, extra: Optional[any] = None):
+        ChangeLog.log("message", (label, str(self.jid), str(message.to), extra))
         return await behaviour.send(message)
 
     async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
         for agent in self.known_agents.values():
             self.logger.debug(f"Sending revision to {agent.jid}")
-            await self.send_and_log(behaviour, RevisionMessage(to=agent.jid, revision=revision), "revision")
+            await self.send_and_log(behaviour, RevisionMessage(to=agent.jid, revision=revision), "revision", {
+                "+": list(revision.deltas_add.keys()),
+                "-": list(revision.deltas_remove.keys())
+            })
 
     async def send_revision_request(self, hash_: str, to: str, behaviour: CyclicBehaviour):
         self.logger.debug(f"Sending revision request to {to}")
