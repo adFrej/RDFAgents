@@ -387,7 +387,12 @@
         addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE, "cubic-bezier(0.36, 0, 0.66, -0.56)")
       }
 
+      function errorPos() {
+        return {x:window.innerWidth/2,y:0}
+      }
+
       function elToPos(el, middle=true) {
+        if(el == null) return errorPos()
         let rect = el.getBoundingClientRect()
         return {x: rect.x+rect.width/2*middle, y: rect.y+rect.height/2*middle}
       }
@@ -403,7 +408,7 @@
             addFloatingTick(
               colors[c], 
               elToPos(start.children[c], false), 
-              elToPos(end.children[c], false),
+              elToPos(end?end.children[c]:null, false),
               TICK_RATE,
               "cubic-bezier(0.32, 0, 0.67, 0)"
             )
