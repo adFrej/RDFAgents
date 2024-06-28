@@ -18,7 +18,7 @@ def setup_logging():
         format="[%(levelname)s] %(asctime)s (%(name)s): %(message)s",
         handlers=[
             logging.FileHandler(os.path.join(directory, "log.log")),
-            logging.StreamHandler()
+            # logging.StreamHandler()
         ]
     )
 

@@ -2,14 +2,14 @@ from collections import defaultdict
 
 
 class ChangeLog:
-    state = defaultdict(list)
+    state = []
 
     @classmethod
     def log(cls, key: str, change: any) -> None:
-        cls.state[key].append(change)
+        cls.state.append([key, *change])
 
     @classmethod
-    def read(cls, key: str) -> list[any]:
-        values = cls.state[key]
-        cls.state[key] = []
+    def read(cls) -> list[any]:
+        values = cls.state
+        cls.state = []
         return values

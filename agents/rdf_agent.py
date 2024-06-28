@@ -6,6 +6,7 @@ from uuid import uuid4
 from spade.agent import Agent
 from spade.behaviour import (CyclicBehaviour, OneShotBehaviour,
                              PeriodicBehaviour)
+from spade.message import Message
 
 from agents.revision_message import RevisionMessage, ONTOLOGY_REVISION
 from agents.revision_request_message import RevisionRequestMessage, ONTOLOGY_REVISION_REQUEST
@@ -61,14 +62,18 @@ class RDFAgent(Agent):
             self.logger.debug(f"Merge master is {min_jid}")
             self.merge_master = min_jid
 
+    async def send_and_log(self, behaviour: CyclicBehaviour, message: Message, label: str):
+        ChangeLog.log("message", (label, str(self.jid), str(message.to)))
+        return await behaviour.send(message)
+
     async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
         for agent in self.known_agents.values():
             self.logger.debug(f"Sending revision to {agent.jid}")
-            await behaviour.send(RevisionMessage(to=agent.jid, revision=revision))
+            await self.send_and_log(behaviour, RevisionMessage(to=agent.jid, revision=revision), "revision")
 
     async def send_revision_request(self, hash_: str, to: str, behaviour: CyclicBehaviour):
         self.logger.debug(f"Sending revision request to {to}")
-        await behaviour.send(RevisionRequestMessage(to=to, hash_=hash_))
+        await self.send_and_log(behaviour, RevisionRequestMessage(to=to, hash_=hash_), "request")
 
     class RegisterAgentOnServer(OneShotBehaviour):
         async def run(self):
@@ -80,7 +85,7 @@ class RDFAgent(Agent):
                 if agent_jid == str(self.agent.jid):
                     continue
                 self.agent.logger.debug(f"Sending status message to {agent_jid}")
-                await self.send(StatusMessage(to=agent_jid, uuid=self.agent.uuid, latest_revision=self.agent.doc.current_hash))
+                await self.agent.send_and_log(self, StatusMessage(to=agent_jid, uuid=self.agent.uuid, latest_revision=self.agent.doc.current_hash), "status")
 
                 # to be done better
                 if agent_jid in self.agent.known_agents:

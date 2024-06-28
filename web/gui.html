@@ -149,6 +149,24 @@
         position: absolute;
         --scale: 1;
       }
+
+
+      .animated-marker--letter {
+        font-size: calc(2rem * var(--scale));
+        margin-left: calc(-0.4rem * var(--scale));
+        line-height: calc(2rem * var(--scale));
+        margin-top: calc(-1.2rem * var(--scale));
+        font-family: "Inter", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 450;
+        font-style: normal;
+        font-variation-settings: "slnt" 0;
+        color: #2f3e46;
+      }
+
+      .animated-marker--letter-s {
+        --scale: 0.7;
+      }
     </style>
   </head>
   <body>
@@ -313,7 +331,7 @@
 
 
       // Change animations
-      const TICK_RATE = 500
+      const TICK_RATE = 750
       function addFloatingTick(color, from, to, timescale) {
         const marker = document.createElement("div");
         marker.className = `knowledge__marker animated-marker knowledge__marker--${color}`
@@ -336,18 +354,66 @@
         }, timescale*4/3, marker)
       }
 
+      function addFloatingLetter(letter, from, to, timescale) {
+        const marker = document.createElement("div");
+        marker.className = `animated-marker animated-marker--letter animated-marker--letter-${letter}`
+        marker.innerText = letter
+        marker.style.setProperty("left", from["x"]+"px")
+        marker.style.setProperty("top", from["y"]+"px")
+        marker.style.setProperty("opacity", 0)
+        marker.style.setProperty("transition", `left ${timescale}ms, top ${timescale}ms, opacity ${Math.round(timescale/4)}ms`)
+        document.getElementById("animation-layer").appendChild(marker)
+
+        setTimeout(marker => {
+          marker.style.setProperty("left", to["x"]+"px")
+          marker.style.setProperty("top", to["y"]+"px")
+          marker.style.setProperty("opacity", 1)
+        }, 10, marker)
+        setTimeout(marker => {
+          marker.style.setProperty("opacity", 0)
+        }, timescale*3/4, marker)
+        setTimeout(marker => {
+          marker.remove()
+        }, timescale, marker)
+      }
+
+      function parseUncovered(change) {
+        let targetTick = document.getElementById(change[0]).children[Math.abs(change[2])-1].getBoundingClientRect()
+        let targetPos = {x: targetTick.x, y: targetTick.y}
+        let startPos = {
+          x: (targetTick.x-window.innerWidth/2)*1.25 + window.innerWidth/2,
+          y: (targetTick.y-window.innerHeight/2)*1.25 + window.innerHeight/2
+        }
+        addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE)
+      }
+
+      function elToPos(el) {
+        let rect = el.getBoundingClientRect()
+        return {x: rect.x+rect.width/2, y: rect.y+rect.height/2}
+      }
+
+      function parseMessage(change) {
+        let start = document.getElementById(change[1])
+        let end = document.getElementById(change[2])
+        console.log(change[0])
+        if(change[0] == "revision") {
+
+        } else {
+          addFloatingLetter(change[0][0], elToPos(start), elToPos(end), TICK_RATE)
+        } 
+      }
+
       function parseChangeLog(changes) {
-        let timescale = TICK_RATE/changes.uncovered.length
-        for(let i in changes.uncovered) {
-          setTimeout(change => {
-            let targetTick = document.getElementById(change[0]).children[Math.abs(change[2])-1].getBoundingClientRect()
-            let targetPos = {x: targetTick.x, y: targetTick.y}
-            let startPos = {
-              x: (targetTick.x-window.innerWidth/2)*1.25 + window.innerWidth/2,
-              y: (targetTick.y-window.innerHeight/2)*1.25 + window.innerHeight/2
-            }
-            addFloatingTick(change[1]=="+"?"green":"black", startPos, targetPos, TICK_RATE)
-          }, timescale*i, changes.uncovered[i])
+        let timescale = TICK_RATE/changes.length
+        let funcMap = {
+          uncovered: parseUncovered,
+          message: parseMessage
+        }
+        for(let i in changes) {
+          let change = changes[i]
+          let func = funcMap[change[0]]
+          change.shift()
+          if(func) setTimeout(func, timescale*i, change)
         }
       }
 

@@ -33,9 +33,11 @@ class EndpointsContext:
             if agent.is_merge_master:
                 state['merge_masters'].append(str(agent.jid))
 
-        state["changes"] = {
-            "uncovered": [(a, o, int(markers[t])) for a,o,t in ChangeLog.read("uncovered")]
+        transformers = {
+            "uncovered": lambda a, o, t: (a, o, int(markers[t])),
+            "message": lambda *args: args
         }
+        state["changes"] = [[e[0], *transformers[e[0]](*e[1:])] for e in ChangeLog.read()]
         
         return state
     
