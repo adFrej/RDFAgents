@@ -322,12 +322,12 @@
         marker.style.setProperty("opacity", 0)
         marker.style.setProperty("transition", `left ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), top ${timescale}ms cubic-bezier(0.36, 0, 0.66, -0.56), opacity ${Math.round(timescale/3)}ms`)
         document.getElementById("animation-layer").appendChild(marker)
-        
+
         setTimeout(marker => {
           marker.style.setProperty("left", to["x"]+"px")
           marker.style.setProperty("top", to["y"]+"px")
           marker.style.setProperty("opacity", 1)
-        }, 1, marker)
+        }, 10, marker)
         setTimeout(marker => {
           marker.style.setProperty("opacity", 0)
         }, timescale, marker)
