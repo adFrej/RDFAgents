@@ -49,3 +49,8 @@ class EndpointsContext:
     
     async def endpoint_pop_last_agent(self) -> None:
         await self.simulation.pop_last_agent()
+    
+    async def endpoint_remove_agent(self, jid: str) -> None:
+        for agent in self.simulation.active_agents:
+            if str(agent.jid) == jid:
+                await agent.stop()

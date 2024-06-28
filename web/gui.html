@@ -21,7 +21,6 @@
         width: 100%;
         height: 100%;
         position: absolute;
-        z-index: -1;
       }
 
       .knowledge__container {
@@ -116,11 +115,14 @@
         width: fit-content;
         height: fit-content;
         padding-left: 2rem;
+        padding-bottom: 1.3rem;
         border-bottom-right-radius: 0.8rem;
         background: #28383a99;
         display: flex;
         flex-direction: column;
         gap: 0.3rem;
+        z-index: 5;
+        position: absolute;
       }
 
       .panel-left__item {
@@ -145,11 +147,16 @@
         color: #ffefc4;
       }
 
+
+
+      #animation-layer {
+        pointer-events: none;
+      }
+
       .animated-marker {
         position: absolute;
         --scale: 1;
       }
-
 
       .animated-marker--letter {
         font-size: calc(2rem * var(--scale));
@@ -167,6 +174,24 @@
       .animated-marker--letter-s {
         --scale: 0.7;
       }
+
+
+      .select-mode .knowledge__container--in-circle:hover {
+        animation: blinking 1s infinite;
+      }
+
+      @keyframes blinking {
+        0% {filter: brightness(1.1);}
+        50%  {filter: brightness(1.8);}
+        100% {filter: brightness(1.1);}
+      }
+
+      .select-mode .panel-left__item--in-mode, .panel-left__item--in-mode:active {
+        color: #ff6f6f;
+      }
+      .select-mode .panel-left__item--in-mode:hover {
+        color: #c15d57;
+      }
     </style>
   </head>
   <body>
@@ -182,6 +207,7 @@
         <span id="agent-counter" class="panel-left__item">0</span>
         <span class="panel-left__item panel-left__item--clickable" onclick="buttonAddAgent()"> [+] </span>
       </div>
+      <div class="panel-left__item panel-left__item--clickable panel-left__item--in-mode" onclick="buttonToggleDeletionMode()">[Remove agent]</div>
     </div>
     <div id="animation-layer">
 
@@ -204,13 +230,18 @@
       function buttonRestart() {endpointPost("restart")}
       function buttonAddAgent() {endpointPost("add_agent")}
       function buttonPopLastAgent() {endpointPost("pop_last_agent")}
+      function buttonToggleDeletionMode() {document.body.classList.toggle("select-mode")}
 
+      function handleClick(jid) {
+        endpointPost("remove_agent", {jid})
+      }
 
       // Marker rendering
       function makeKnowledgeMarker(id, extraClasses="") {
         const container = document.createElement("div");
         container.className = "knowledge__container " + extraClasses
         container.id = id
+        container.onclick = () => {if(document.body.classList.contains("select-mode")) handleClick(id)}
 
         for(let i=0;i<GLOBAL_STATE.total_triples;i++) {
           const marker = document.createElement("div");
