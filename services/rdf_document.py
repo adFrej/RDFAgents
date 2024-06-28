@@ -67,8 +67,6 @@ class RDFDocument:
                     return current_1
                 for parent in current_1.parents:
                     if parent not in visited_1:
-                        if parent not in self.revisions:
-                            raise MissingRevision()
                         to_visit_1.append(self.revisions[parent])
             if len(to_visit_2) > 0:
                 current_2 = to_visit_2.popleft()
@@ -89,7 +87,7 @@ class RDFDocument:
             current_rev = current[-1]
             if current_rev.hash == hash_:
                 current.reverse()
-                return current
+                return current[1:]
             for parent in current_rev.parents:
                 if parent not in self.revisions:
                     raise MissingRevision()
@@ -114,7 +112,11 @@ class RDFDocument:
             return None
         revision1 = self.combine_revisions(self.revisions_between(ancestor.hash, self.current_revision))
         revision2 = self.combine_revisions(self.revisions_between(ancestor.hash, revision))
-        return revision1.combine(revision2)
+        merge_revision = RDFRevision(parents=[self.current_hash, revision.hash], author=self.author_uuid)
+        merge_revision.deltas_add = {k: ancestor.deltas_add[k] for k in set(ancestor.deltas_add) - set(revision1.deltas_remove) - set(revision2.deltas_remove)}
+        merge_revision.deltas_add = {**merge_revision.deltas_add, **revision1.deltas_add, **revision2.deltas_add}
+        merge_revision.deltas_remove = {**ancestor.deltas_remove, **revision1.deltas_remove, **revision2.deltas_remove}
+        return merge_revision
 
     def rebase_revision(self, revision: 'RDFRevision') -> list['RDFRevision']:
         ancestor = self.common_ancestor(revision)
@@ -124,7 +126,7 @@ class RDFDocument:
         r_next = revision
         rebased = []
         self.append_revision(revision)
-        for r in between[1:]:
+        for r in between:
             r.parents = [r_next.hash]
             self.revisions.pop(r.hash)
             self.append_revision(r)
@@ -154,10 +156,11 @@ class RDFRevision:
         else:
             self.deltas_remove[triple.hash] = triple
 
-    def combine(self, revision: 'RDFRevision') -> 'RDFRevision':
-        new_revision = RDFRevision(parents=[self.hash, revision.hash], author=self.author_uuid)
-        new_revision.deltas_add = {**self.deltas_add, **revision.deltas_add}
-        new_revision.deltas_remove = {**self.deltas_remove, **revision.deltas_remove}
+    def combine(self, revision_next: 'RDFRevision') -> 'RDFRevision':
+        new_revision = RDFRevision(parents=self.parents, author=self.author_uuid)
+        new_revision.deltas_add = {k: self.deltas_add[k] for k in set(self.deltas_add) - set(revision_next.deltas_remove)}
+        new_revision.deltas_add = {**new_revision.deltas_add, **revision_next.deltas_add}
+        new_revision.deltas_remove = {**self.deltas_remove, **revision_next.deltas_remove}
         return new_revision
 
     @property
