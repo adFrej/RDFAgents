@@ -103,6 +103,8 @@ class RDFDocument:
     def append_revision(self, revision: 'RDFRevision'):
         self.revisions[revision.hash] = revision
         self.current_hash = revision.hash
+        self.cached_state = {**self.cached_state, **revision.deltas_add}
+        self.cached_state = {k: v for k, v in self.cached_state.items() if k not in revision.deltas_remove}
 
     def merge_revision(self, revision: 'RDFRevision') -> Optional['RDFRevision']:
         ancestor = self.common_ancestor(revision)
