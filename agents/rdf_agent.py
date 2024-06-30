@@ -197,7 +197,7 @@ class RDFAgent(Agent):
                     self.agent.logger.debug(f"Revision requested by {msg.sender} not found")
                     return
                 if msg.sender == self.agent.merge_master:
-                    if revision.author_uuid == self.agent.uuid or revision.author_uuid not in self.agent.known_agents:
+                    if revision.author_uuid == self.agent.uuid or revision.author_uuid not in [agent.uuid for agent in self.agent.known_agents.values()]:
                         await self.agent.send_revision(revision, self)
                 elif self.agent.is_merge_master:
                     await self.agent.send_revision(revision, self)
