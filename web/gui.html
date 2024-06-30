@@ -212,6 +212,20 @@
         flex-wrap: wrap;
         align-content: center;
       }
+      
+      
+      #panel-right {
+        width: 30vw;
+        position: absolute;
+        left: 0;  
+        height: calc(100% - 1.8rem);
+        overflow: hidden;
+        padding: 0.9rem;
+      }
+      #messageChart {
+        bottom: 0.9rem;
+        position: absolute;
+      }
     </style>
   </head>
   <body>
@@ -229,9 +243,14 @@
       </div>
       <div class="panel-left__item panel-left__item--clickable panel-left__item--in-mode" onclick="buttonToggleDeletionMode()">[Remove agent]</div>
     </div>
+    <div id="panel-right">
+      <canvas id="messageChart"></canvas>
+    </div>
     <div id="animation-layer">
 
     </div>
+
+    <script src=" https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js "></script>
     <script>
       // Endpoint utilities
       async function endpointGet(url) {
@@ -483,6 +502,47 @@
         }
       }
 
+      // Graph
+      Chart.defaults.color = '#c9d2c6';
+      let messageChart = new Chart(document.getElementById('messageChart'), {
+          type: 'line',
+          data: {
+              labels: [], // Labels will be tick counts
+              datasets: [{
+                  label: 'Messages per Second',
+                  data: [],
+                  borderColor: 'rgba(47, 62, 70, 0.7)',
+                  backgroundColor: 'rgba(47, 62, 70, 0.5)',
+                  fill: true,
+              }]
+          },
+          options: {
+              scales: {
+                  x: {
+                      type: 'linear',
+                      beginAtZero: true
+                  },
+                  y: {
+                      beginAtZero: true
+                  }
+              },
+              responsive: true
+          }
+      });
+
+      let tickCount = -1;
+      let lastUpdate = Date.now();
+
+      function updateMessageChart(messageCount, secondsSinceLastUpdate) {
+          tickCount++;
+          let messagesPerSecond = messageCount / secondsSinceLastUpdate;
+
+          messageChart.data.labels.push(tickCount);
+          messageChart.data.datasets[0].data.push(messagesPerSecond);
+
+          messageChart.update();
+      }
+
       // State and main loop
       const GLOBAL_STATE = {}
       function updateGlobalState(key, value, onChange) {
@@ -500,6 +560,7 @@
         if(agentCount < 9) parseChangeLog(state["changes"])
         document.body.classList.toggle("low-mode", agentCount >= 9)
         document.body.style.setProperty("--cell-x", Math.ceil(Math.sqrt(agentCount)))
+        updateMessageChart(state["changes"].length, state["delta_time"]);
         // console.log(state)
       }
       setInterval(() => {

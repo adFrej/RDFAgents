@@ -37,7 +37,9 @@ class EndpointsContext:
             "uncovered": lambda a, o, t: (a, o, int(markers[t])),
             "message": lambda l, f, t, v: (l, f, t, {k: [int(markers[vvv]) for vvv in vv] for k, vv in v.items()}) if v is not None else (l, f, t)
         }
-        state["changes"] = [[e[0], *transformers[e[0]](*e[1:])] for e in ChangeLog.read()]
+        changes, delta_time = ChangeLog.read()
+        state["changes"] = [[e[0], *transformers[e[0]](*e[1:])] for e in changes]
+        state["delta_time"] = delta_time
         
         return state
     
