@@ -84,10 +84,16 @@ class RDFAgent(Agent):
             })
 
     async def send_revision_request(self, hash_: str, to: Optional[str], behaviour: CyclicBehaviour):
+        if not self.is_merge_master:
+            self.logger.debug(f"Sending revision request to merge master {self.merge_master}")
+            await self.send_and_log(behaviour, RevisionRequestMessage(to=self.merge_master, hash_=hash_), "request")
+            return
+
         if to is not None:
             self.logger.debug(f"Sending revision request to {to}")
             await self.send_and_log(behaviour, RevisionRequestMessage(to=to, hash_=hash_), "request")
             return
+
         for agent in self.known_agents.values():
             self.logger.debug(f"Sending revision request to {agent.jid}")
             await self.send_and_log(behaviour, RevisionRequestMessage(to=agent.jid, hash_=hash_), "request")
@@ -155,8 +161,8 @@ class RDFAgent(Agent):
 
                 for parent in revision.parents:
                     if parent not in self.agent.doc.revisions_hashes:
-                        self.agent.logger.debug(f"Requesting missing parent revision from {msg.sender}")
-                        await self.agent.send_revision_request(parent, str(msg.sender), self)
+                        self.agent.logger.debug(f"Requesting missing parent revision of revision from {msg.sender}")
+                        await self.agent.send_revision_request(parent, None, self)
 
                 if revision.hash in self.agent.doc.revisions_hashes:
                     return
