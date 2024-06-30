@@ -67,6 +67,8 @@ class RDFDocument:
                     return current_1
                 for parent in current_1.parents:
                     if parent not in visited_1:
+                        if parent not in self.revisions:
+                            raise MissingRevision()
                         to_visit_1.append(self.revisions[parent])
             if len(to_visit_2) > 0:
                 current_2 = to_visit_2.popleft()

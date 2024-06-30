@@ -1,6 +1,6 @@
+import datetime
 import json
 import time
-import datetime
 from typing import Optional
 from uuid import uuid4
 
@@ -75,9 +75,14 @@ class RDFAgent(Agent):
                 "-": list(revision.deltas_remove.keys())
             })
 
-    async def send_revision_request(self, hash_: str, to: str, behaviour: CyclicBehaviour):
-        self.logger.debug(f"Sending revision request to {to}")
-        await self.send_and_log(behaviour, RevisionRequestMessage(to=to, hash_=hash_), "request")
+    async def send_revision_request(self, hash_: str, to: Optional[str], behaviour: CyclicBehaviour):
+        if to is not None:
+            self.logger.debug(f"Sending revision request to {to}")
+            await self.send_and_log(behaviour, RevisionRequestMessage(to=to, hash_=hash_), "request")
+            return
+        for agent in self.known_agents.values():
+            self.logger.debug(f"Sending revision request to {agent.jid}")
+            await self.send_and_log(behaviour, RevisionRequestMessage(to=agent.jid, hash_=hash_), "request")
 
     class RegisterAgentOnServer(OneShotBehaviour):
         async def run(self):
@@ -115,6 +120,8 @@ class RDFAgent(Agent):
 
     class LocalRevisionCreate(PeriodicBehaviour):
         async def run(self):
+            if len(self.agent.doc.revisions) == 0 and not self.agent.is_merge_master:
+                return
             self.agent.logger.debug("Creating new local revision")
             self.agent.doc.new_revision()
             fragment = self.agent.simulation.graph_generator.uncover_graph_fragment(self.agent.doc.cached_state)
