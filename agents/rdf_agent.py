@@ -90,6 +90,9 @@ class RDFAgent(Agent):
 
     class StatusSend(PeriodicBehaviour):
         async def run(self):
+            if self.agent.is_merge_master:
+                self.agent.simulation.log_leaderboard()
+
             for agent_jid in self.agent.simulation.server.registered_agents:
                 if agent_jid == str(self.agent.jid):
                     continue
@@ -166,7 +169,7 @@ class RDFAgent(Agent):
                             self.agent.doc.append_revision(merge_revision)
                             await self.agent.send_revision(merge_revision, self)
                 except MissingRevision:
-                    self.agent.logger.warning(f"Detected missing ancestor revision from {msg.sender}")
+                    self.agent.logger.debug(f"Detected missing ancestor revision from {msg.sender}")
 
                 if to_insert:
                     self.agent.doc.append_revision(revision)
@@ -180,7 +183,7 @@ class RDFAgent(Agent):
                 hash_ = body["hash"]
                 revision = self.agent.doc.revisions.get(hash_)
                 if revision is None:
-                    self.agent.logger.warning(f"Revision requested by {msg.sender} not found")
+                    self.agent.logger.debug(f"Revision requested by {msg.sender} not found")
                     return
                 if msg.sender == self.agent.merge_master:
                     if revision.author_uuid == self.agent.uuid or revision.author_uuid not in self.agent.known_agents:

@@ -13,12 +13,15 @@ def setup_logging():
         os.makedirs(directory)
     else:
         raise Exception(f"Directory {directory} already exists - cannot create logs")
+
+    stream_handle = logging.StreamHandler()
+    stream_handle.setLevel(logging.INFO)
     logging.basicConfig(
         level=logging.WARNING,
         format="[%(levelname)s] %(asctime)s (%(name)s): %(message)s",
         handlers=[
             logging.FileHandler(os.path.join(directory, "log.log")),
-            # logging.StreamHandler()
+            stream_handle
         ]
     )
 

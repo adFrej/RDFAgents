@@ -6,7 +6,7 @@ class ChangeLog:
 
     @classmethod
     def log(cls, key: str, change: any) -> None:
-        print(key, change)
+        # print(key, change)
         cls.state.append([key, *change])
 
     @classmethod

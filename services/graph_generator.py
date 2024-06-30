@@ -13,6 +13,7 @@ class GraphGenerator:
         self.mutation_chance = mutation_chance
         self.uncover_outdated_chance = uncover_outdated_chance
         self.total_triples = total_triples
+        self.uncovered_triples = {}
 
         self.restart()
 
@@ -29,8 +30,13 @@ class GraphGenerator:
         if self.random.random() < self.uncover_outdated_chance:
             removed = list(set(known_triples.keys()).difference({t.hash for t in self.ground_truth}))
             if len(removed) > 0:
-                return "-", known_triples[self.random.choice(removed)]
-        return "+", self.ground_truth[self.get_random_triple_id()]
+                to_remove = self.random.choice(removed)
+                if to_remove in self.uncovered_triples:
+                    del self.uncovered_triples[to_remove]
+                return "-", known_triples[to_remove]
+        to_add = self.ground_truth[self.get_random_triple_id()]
+        self.uncovered_triples[to_add.hash] = to_add
+        return "+", to_add
 
     def get_random_triple_id(self):
         return self.random.integers(0, len(self.ground_truth))
