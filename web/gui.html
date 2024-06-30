@@ -244,7 +244,7 @@
       <div class="panel-left__item panel-left__item--clickable panel-left__item--in-mode" onclick="buttonToggleDeletionMode()">[Remove agent]</div>
     </div>
     <div id="panel-right">
-      <canvas id="messageChart"></canvas>
+      <canvas id="messageChart" ondblclick="resetChart()"></canvas>
     </div>
     <div id="animation-layer">
 
@@ -541,6 +541,14 @@
           messageChart.data.datasets[0].data.push(messagesPerSecond);
 
           messageChart.update();
+      }
+
+      function resetChart() {
+        tickCount = -1
+        messageChart.data.labels = [];
+        messageChart.data.datasets[0].data = [];
+
+        messageChart.update();
       }
 
       // State and main loop
