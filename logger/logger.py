@@ -2,6 +2,8 @@ import logging
 import os.path
 import time
 
+from agents.message_delivery_fail import MessageDeliveryFail
+
 directory = ""
 
 
@@ -16,13 +18,24 @@ def setup_logging():
 
     stream_handle = logging.StreamHandler()
     stream_handle.setLevel(logging.INFO)
+
+    handlers = [
+        logging.FileHandler(os.path.join(directory, "log.log")),
+        stream_handle
+    ]
+
+    def message_delivery_fail_filter(record: logging.LogRecord) -> bool:
+        if record.levelno == logging.WARNING and record.msg.startswith("No behaviour matched for message: "):
+            raise MessageDeliveryFail()
+        return True
+
+    for i in range(len(handlers)):
+        handlers[i].addFilter(message_delivery_fail_filter)
+
     logging.basicConfig(
         level=logging.WARNING,
         format="[%(levelname)s] %(asctime)s (%(name)s): %(message)s",
-        handlers=[
-            logging.FileHandler(os.path.join(directory, "log.log")),
-            stream_handle
-        ]
+        handlers=handlers
     )
 
 

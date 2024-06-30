@@ -15,8 +15,9 @@ class Server:
 
     def deregister_agent(self, address: str):
         with self._lock:
-            self.logger.debug(f"Deregistering agent {address}")
-            self._registered_agents.remove(address)
+            if address in self._registered_agents:
+                self.logger.debug(f"Deregistering agent {address}")
+                self._registered_agents.remove(address)
 
     @property
     def registered_agents(self) -> set[str]:

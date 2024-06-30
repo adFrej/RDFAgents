@@ -9,6 +9,7 @@ from spade.behaviour import (CyclicBehaviour, OneShotBehaviour,
                              PeriodicBehaviour)
 from spade.message import Message
 
+from agents.message_delivery_fail import MessageDeliveryFail
 from agents.revision_message import RevisionMessage, ONTOLOGY_REVISION
 from agents.revision_request_message import RevisionRequestMessage, ONTOLOGY_REVISION_REQUEST
 from agents.status_message import StatusMessage, ONTOLOGY_STATUS
@@ -48,7 +49,11 @@ class RDFAgent(Agent):
     def merge_master_agent(self) -> 'RDFAgent.KnownAgent':
         if self.is_merge_master:
             return RDFAgent.KnownAgent(str(self.jid), self.uuid, self.doc.current_hash, "online")
-        return self.known_agents[self.merge_master]
+        merge_master = self.known_agents.get(self.merge_master)
+        if merge_master is None:
+            self.elect_merge_master()
+            return self.merge_master_agent
+        return merge_master
 
     def elect_merge_master(self):
         if len(self.known_agents) == 0:
@@ -65,7 +70,10 @@ class RDFAgent(Agent):
 
     async def send_and_log(self, behaviour: CyclicBehaviour, message: Message, label: str, extra: Optional[any] = None):
         ChangeLog.log("message", (label, str(self.jid), str(message.to), extra))
-        return await behaviour.send(message)
+        try:
+            return await behaviour.send(message)
+        except MessageDeliveryFail:
+            self.logger.warning(f"Failed to deliver message to {message.to}")
 
     async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
         for agent in self.known_agents.values():
@@ -99,13 +107,16 @@ class RDFAgent(Agent):
                 self.agent.logger.debug(f"Sending status message to {agent_jid}")
                 await self.agent.send_and_log(self, StatusMessage(to=agent_jid, uuid=self.agent.uuid, latest_revision=self.agent.doc.current_hash), "status")
 
-                # to be done better
-                if agent_jid in self.agent.known_agents:
-                    if self.agent.known_agents[agent_jid].created + KNOWN_AGENTS_TTL < time.time():
-                        self.agent.logger.warning(f"Lost connection with {agent_jid}")
-                        del self.agent.known_agents[agent_jid]
-                        if agent_jid == self.agent.merge_master:
-                            self.agent.elect_merge_master()
+            to_remove = set()
+            for agent_jid in self.agent.known_agents:
+                if self.agent.known_agents[agent_jid].created + KNOWN_AGENTS_TTL < time.time():
+                    self.agent.logger.warning(f"Lost connection with {agent_jid}")
+                    self.agent.simulation.server.deregister_agent(agent_jid)
+                    to_remove.add(agent_jid)
+            while len(to_remove) > 0:
+                del self.agent.known_agents[to_remove.pop()]
+                if to_remove == self.agent.merge_master:
+                    self.agent.elect_merge_master()
 
     class StatusReceive(CyclicBehaviour):
         async def run(self):
