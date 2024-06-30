@@ -179,7 +179,6 @@
       .select-mode .knowledge__container--in-circle:hover {
         animation: blinking 1s infinite;
       }
-
       @keyframes blinking {
         0% {filter: brightness(1.1);}
         50%  {filter: brightness(1.8);}
@@ -191,6 +190,27 @@
       }
       .select-mode .panel-left__item--in-mode:hover {
         color: #c15d57;
+      }
+
+      .low-mode .knowledge__container--in-circle {
+        position: relative;
+        transform: none;
+        flex-shrink: 0;
+        flex-grow: 0;
+        top: 0;
+        left: 0;
+      }
+
+      .low-mode #marker-root {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        --cell-width: calc((var(--marker-dot-size) * var(--marker-width) + 1px * (var(--marker-width) - 1)));
+        width: 50vmin;
+        gap: calc((50vmin - var(--cell-width) * var(--cell-x)) / (var(--cell-x)));
+        left: calc(50vw - 25vmin);
+        flex-wrap: wrap;
+        align-content: center;
       }
     </style>
   </head>
@@ -475,8 +495,11 @@
       function renderState(state) {
         updateGlobalState("total_triples", state["total_triples"], updateKnowledgeMarkerWidth) // TODO
         renderKnowledgeMarkers(state["agent_knowledge"], state["merge_masters"])
-        document.getElementById("agent-counter").innerText = Object.keys(state["agent_knowledge"]).length
-        parseChangeLog(state["changes"])
+        let agentCount = Object.keys(state["agent_knowledge"]).length
+        document.getElementById("agent-counter").innerText = agentCount
+        if(agentCount < 9) parseChangeLog(state["changes"])
+        document.body.classList.toggle("low-mode", agentCount >= 9)
+        document.body.style.setProperty("--cell-x", Math.ceil(Math.sqrt(agentCount)))
         // console.log(state)
       }
       setInterval(() => {
