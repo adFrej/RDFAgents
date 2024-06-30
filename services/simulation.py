@@ -73,13 +73,13 @@ class Simulation:
     def log_leaderboard(self):
         leaderboard = {}
         for agent in self.active_agents:
-            n_missing_triples = len(self.graph_generator.uncovered_triples) - len(agent.doc.cached_state)
-            if n_missing_triples > 0:
-                leaderboard[str(agent.jid)] = n_missing_triples
+            n_diff = len(set(self.graph_generator.uncovered_triples).symmetric_difference(set(agent.doc.cached_state)))
+            if n_diff > 0:
+                leaderboard[str(agent.jid)] = n_diff
         if len(leaderboard) == 0:
             self._logger.info("All agents have the full knowledge")
         else:
             self._logger.info(f"Number of unsynchronized agents: {len(leaderboard)}/{len(self.active_agents)}")
             leaderboard = dict(sorted(leaderboard.items(), key=lambda item: item[1], reverse=True))
             leaderboard = {k: leaderboard[k] for k in list(leaderboard.keys())[:3]}
-            self._logger.info(f"Worst agents by missing triples from ground truth: {leaderboard}")
+            self._logger.info(f"Worst agents by difference in triples from uncovered truth: {leaderboard}")
