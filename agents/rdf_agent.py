@@ -75,7 +75,14 @@ class RDFAgent(Agent):
         except MessageDeliveryFail:
             self.logger.warning(f"Failed to deliver message to {message.to}")
 
-    async def send_revision(self, revision: RDFRevision, behaviour: CyclicBehaviour):
+    async def send_revision(self, revision: RDFRevision, to: Optional[str], behaviour: CyclicBehaviour):
+        if to is not None:
+            self.logger.debug(f"Sending revision to {to}")
+            await self.send_and_log(behaviour, RevisionMessage(to=to, revision=revision), "revision", {
+                "+": list(revision.deltas_add.keys()),
+                "-": list(revision.deltas_remove.keys())
+            })
+            return
         for agent in self.known_agents.values():
             self.logger.debug(f"Sending revision to {agent.jid}")
             await self.send_and_log(behaviour, RevisionMessage(to=agent.jid, revision=revision), "revision", {
@@ -150,7 +157,7 @@ class RDFAgent(Agent):
             revision = self.agent.doc.current_revision
 
             if self.agent.merge_master_agent.latest_revision in self.agent.doc.revisions_hashes:
-                await self.agent.send_revision(revision, self)
+                await self.agent.send_revision(revision, None, self)
 
     class RemoteRevisionReceive(CyclicBehaviour):
         async def run(self):
@@ -175,7 +182,7 @@ class RDFAgent(Agent):
                         self.agent.logger.debug(f"Rebasing revision from {msg.sender}")
                         rebased = self.agent.doc.rebase_revision(revision)
                         for rev in rebased:
-                            await self.agent.send_revision(rev, self)
+                            await self.agent.send_revision(rev, None, self)
 
                     if self.agent.is_merge_master:
                         merge_revision = self.agent.doc.merge_revision(revision)
@@ -184,7 +191,7 @@ class RDFAgent(Agent):
                             self.agent.logger.debug(f"Merging revision from {msg.sender}")
                             self.agent.doc.append_revision(revision)
                             self.agent.doc.append_revision(merge_revision)
-                            await self.agent.send_revision(merge_revision, self)
+                            await self.agent.send_revision(merge_revision, None, self)
                 except MissingRevision:
                     self.agent.logger.debug(f"Detected missing ancestor revision from {msg.sender}")
 
@@ -202,11 +209,11 @@ class RDFAgent(Agent):
                 if revision is None:
                     self.agent.logger.debug(f"Revision requested by {msg.sender} not found")
                     return
-                if msg.sender == self.agent.merge_master:
+                if str(msg.sender) == self.agent.merge_master:
                     if revision.author_uuid == self.agent.uuid or revision.author_uuid not in [agent.uuid for agent in self.agent.known_agents.values()]:
-                        await self.agent.send_revision(revision, self)
+                        await self.agent.send_revision(revision, str(msg.sender), self)
                 elif self.agent.is_merge_master:
-                    await self.agent.send_revision(revision, self)
+                    await self.agent.send_revision(revision, str(msg.sender), self)
 
     async def stop(self):
         self.logger.info("Agent is stopping")
