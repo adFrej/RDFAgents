@@ -20,6 +20,10 @@ class RDFDocument:
 
     @property
     def current_revision(self) -> 'RDFRevision':
+        if len(self.revisions) == 0:
+            raise Exception("Agent has no revisions")  # should return None but it's not handled
+        if self.current_hash is None or self.current_hash not in self.revisions:
+            raise Exception("Current hash desynchronized")  # very unexpected error, something bad happened
         return self.revisions[self.current_hash]
 
     @property

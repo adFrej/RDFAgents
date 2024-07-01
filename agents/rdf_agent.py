@@ -175,6 +175,10 @@ class RDFAgent(Agent):
                     return
                 self.agent.logger.debug(f"Revision from {msg.sender} is new")
 
+                if len(self.agent.doc.revisions) == 0:
+                    self.agent.doc.append_revision(revision)
+                    return
+
                 to_insert = True
                 try:
                     if revision.is_merge and self.agent.doc.can_rebase(revision):
