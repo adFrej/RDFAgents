@@ -18,6 +18,6 @@ class GuiServer:
 
         future = web_agent.start(auto_register=True)
         future.result()
-        web_agent.web.start(port=10000)
+        web_agent.web.start(hostname="0.0.0.0", port=10000)
 
         self.simulation.start()
