@@ -106,11 +106,51 @@ class RDFDocument:
             return revisions[0]
         return RDFDocument.combine_revisions([revisions[0].combine(revisions[1])] + revisions[2:])
 
+    def regenerate_state(self):
+        if len(self.revisions) == 0:
+            return
+        state = {}
+        visited = [self.current_revision]
+        i = 0
+        while i < len(visited):
+            current = visited[i]
+            i += 1
+            if current.closest_ancestor is not None and current.closest_ancestor in self.revisions:
+                visited.append(self.revisions[current.closest_ancestor])
+
+        visited.reverse()
+        for rev in visited:
+            state = {**state, **rev.deltas_add}
+            state = {k: v for k, v in state.items() if k not in rev.deltas_remove}
+        self.cached_state = state
+
+    def is_tip(self, revision: 'RDFRevision') -> bool:
+        if len(self.revisions) == 0:
+            return True
+        if revision.hash in self.revisions:
+            raise Exception("Revision already in the document")
+        if self.current_hash in revision.parents or self.current_hash == revision.closest_ancestor:
+            return True
+        to_visit = deque([self.current_revision])
+        while len(to_visit) > 0:
+            current = to_visit.popleft()
+            if revision.hash in current.parents or revision.closest_ancestor == current.hash:
+                return False
+            for parent in current.parents:
+                if parent in self.revisions:
+                    to_visit.append(self.revisions[parent])
+        return True
+
     def append_revision(self, revision: 'RDFRevision'):
+        if self.is_tip(revision):
+            self.revisions[revision.hash] = revision
+            self.current_hash = revision.hash
+            self.cached_state = {**self.cached_state, **revision.deltas_add}
+            self.cached_state = {k: v for k, v in self.cached_state.items() if k not in revision.deltas_remove}
+            return
+
         self.revisions[revision.hash] = revision
-        self.current_hash = revision.hash
-        self.cached_state = {**self.cached_state, **revision.deltas_add}
-        self.cached_state = {k: v for k, v in self.cached_state.items() if k not in revision.deltas_remove}
+        self.regenerate_state()
 
     def merge_revision(self, revision: 'RDFRevision') -> Optional['RDFRevision']:
         ancestor = self.common_ancestor(revision)
@@ -120,7 +160,7 @@ class RDFDocument:
             return None
         revision1 = self.combine_revisions(self.revisions_between(ancestor.hash, self.current_revision))
         revision2 = self.combine_revisions(self.revisions_between(ancestor.hash, revision))
-        merge_revision = RDFRevision(parents=[self.current_hash, revision.hash], author=self.author_uuid)
+        merge_revision = RDFRevision(parents=[self.current_hash, revision.hash], author=self.author_uuid, merge_ancestor=ancestor.hash)
         merge_revision.deltas_add = {k: ancestor.deltas_add[k] for k in set(ancestor.deltas_add) - set(revision1.deltas_remove) - set(revision2.deltas_remove)}
         merge_revision.deltas_add = {**merge_revision.deltas_add, **revision1.deltas_add, **revision2.deltas_add}
         merge_revision.deltas_remove = {**ancestor.deltas_remove, **revision1.deltas_remove, **revision2.deltas_remove}
@@ -144,13 +184,14 @@ class RDFDocument:
 
 
 class RDFRevision:
-    def __init__(self, *, parents: Optional[list[str]], author: str):
+    def __init__(self, *, parents: Optional[list[str]], author: str, merge_ancestor: Optional[str] = None):
         self.parents = parents if parents is not None else []
         self.author_uuid = author
         self.created_at = time.time()
         self.hash = hashlib.sha512((str(parents) + author).encode('utf-8')).hexdigest()
         self.deltas_add: dict[str, RDFTriple] = {}
         self.deltas_remove: dict[str, RDFTriple] = {}
+        self.merge_ancestor = merge_ancestor
 
     def add(self, triple: 'RDFTriple'):
         if triple.hash in self.deltas_remove:
@@ -175,6 +216,16 @@ class RDFRevision:
     def is_merge(self) -> bool:
         return len(self.parents) > 1
 
+    @property
+    def closest_ancestor(self) -> Optional[str]:
+        if len(self.parents) == 0:
+            return None
+        if len(self.parents) == 1:
+            return self.parents[0]
+        if self.merge_ancestor is not None:
+            return self.merge_ancestor
+        raise Exception("Revision has multiple parents but no merge ancestor")
+
     def __str__(self) -> str:
         return f"{self.hash}: +{list(self.deltas_add.values())} -{list(self.deltas_remove.values())}"
 
@@ -185,7 +236,8 @@ class RDFRevision:
             "created_at": self.created_at,
             "hash": self.hash,
             "deltas_add": {hash: delta.to_json() for hash, delta in self.deltas_add.items()},
-            "deltas_remove": {hash: delta.to_json() for hash, delta in self.deltas_remove.items()}
+            "deltas_remove": {hash: delta.to_json() for hash, delta in self.deltas_remove.items()},
+            "merge_ancestor": self.merge_ancestor,
         })
 
     @staticmethod
@@ -196,6 +248,7 @@ class RDFRevision:
         revision.hash = data["hash"]
         revision.deltas_add = {hash: RDFTriple.from_json(delta) for hash, delta in data["deltas_add"].items()}
         revision.deltas_remove = {hash: RDFTriple.from_json(delta) for hash, delta in data["deltas_remove"].items()}
+        revision.merge_ancestor = data["merge_ancestor"]
         return revision
 
 

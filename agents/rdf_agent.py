@@ -230,5 +230,5 @@ class RDFAgent(Agent):
         self.add_behaviour(self.StatusReceive())
         self.add_behaviour(self.StatusSend(period=STATUS_SEND_PERIOD))
         self.add_behaviour(self.RemoteRevisionReceive())
-        self.add_behaviour(self.LocalRevisionCreate(period=LOCAL_REVISION_CREATE_PERIOD, start_at=datetime.datetime.now() + datetime.timedelta(seconds=4)))
+        self.add_behaviour(self.LocalRevisionCreate(period=LOCAL_REVISION_CREATE_PERIOD, start_at=datetime.datetime.now() + datetime.timedelta(seconds=8)))
         self.logger.info("Agent started")
