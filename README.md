@@ -30,7 +30,7 @@ Then the initial user needs to be registered:
 ```bash
 docker exec -it ejabberd bin/ejabberdctl register admin localhost password
 ```
-However, due to limitation XMPP protocol and Spade's XMPP client implementation (which we failed to solve), the user must use `localhost` as the domain to connect to local ejabberd.
+However, due to limitation in XMPP protocol and Spade's XMPP client implementation (which we failed to solve), the user must use `localhost` as the domain to connect to local ejabberd.
 
 Because of that, we can't use docker network to connect the two containers, and we are left with `--network host` for RDFAgents:
 ```bash
